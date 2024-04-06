@@ -1,8 +1,8 @@
 # Python Client for CashCtrl REST API
 
 cashctrl_api is a lightweight Python package designed to facilitate connections
-to the REST API of [CashCtrl](https://cashctrl.com), a comprehensive online
-accounting software. It is designed as a thin wrapper that routes requests via
+to the [CashCtrl](https://cashctrl.com) REST API, a concise online accounting
+software. It is designed as a thin wrapper that routes requests via
 universal methods and does not implement individual endpoints.
 
 Most GET, POST, PATCH, PUT and DELETE requests are transmitted via generic
@@ -10,57 +10,72 @@ Most GET, POST, PATCH, PUT and DELETE requests are transmitted via generic
 an API `endpoint`, request parameters and json payload as arguments and return
 the server's response as a `requests.Response` object.
 
-To use this Python client, you'll need valid credentials for CashCtrl, including
-an API key which can be obtained from your CashCtrl account settings.
+To use this Python client, you'll need a valid API key which can be obtained
+from your CashCtrl account settings.
 
 ## Installation
 
 ```bash
-pip install cashctrl_api
+pip install git+ssh://git@github.com/macxred/cashctrl_api.git
 ```
 
+To update an existing installation to the latest version, use:
+```bash
+pip install --upgrade --force-reinstall git+ssh://git@github.com/macxred/cashctrl_api.git
+```
+
+Installation requires SSH access to the GitHub repository.
+If you encounter any installation issues, confirm your SSH access by attempting
+to clone the repository with `git clone git@github.com:macxred/cashctrl_api.git`.
+
 ## Usage
-
-The API Key and the name of the (demo) organisation can be provided to Python
-as `CC_API_KEY` and `CC_API_ORGANISATION` environment variables:
-
-    CC_API_ORGANISATION=<myorg> CC_API_KEY=<mykey> python
-
-Here is a simple example with contacts/people: 
 
 ```python
 from cashctrl_api import CashCtrlAPIClient
 
-cc = CashCtrlAPIClient()
+# Insert your oganisation's name and api_key
+cc = CashCtrlAPIClient("<my_organisation>", api_key="<my_api_key>")
 
 # Create a new contact
 # (https://app.cashctrl.com/static/help/en/api/index.html#/person/create.json)
-
 contact = {
     "firstName": "Tina",
-    "lastName": "Testfrau",
+    "lastName": "Test",
     "titleId": 2
 }
-
 response = cc.post("person/create.json", data=contact)
-print(response)
-insertId = response["insertId"]
+id = response["insertId"]
 
 # Look up the contact created above
-dd = {}; dd["id"] = insertId
-response = cc.get("person/read.json", params=dd)
+response = cc.get("person/read.json", params={'id': id})
 print(response)
+```
+
+Alternatively, you can provide API Key and organisation as environment variables
+`CC_API_KEY` and `CC_API_ORGANISATION`. For example, by setting both variables
+in the shell when starting python:
+
+```bash
+CC_API_ORGANISATION=<myorg> CC_API_KEY=<mykey> python
+```
+
+Usage in python is now even simpler:
+```python
+from cashctrl_api import CashCtrlAPIClient
+cc = CashCtrlAPIClient()
+response = cc.get("person/list.json")
 ```
 
 ## Test Strategy
 
-We use pytest for it's clean and concise test syntax, rather than the standard
-test framework.
+We use pytest for it's clean and concise test syntax, rather than the unittest
+from the standard library.
 
-The tests in the cashctrl_api package are executed by github after each commit,
-when pull requests are created or modified, and once every day. The tests
-connect to an organisation within Macxred's CashCtrl subscription (which is not
-publicly accessible).
+Tests in the [cashctrl_api/tests](tests) folder are executed as github action
+after each commit, when pull requests are created or modified, and once every
+day. When executed as github action, the tests use an API key stored as github
+secret and connect to an organisation covered by Macxred's CashCtrl
+subscription (which is not publicly accessible).
 
 ## Package Development
 
@@ -74,5 +89,5 @@ source ~/.virtualenvs/env_name/bin/activate
 
 To locally modify and test the package, clone the repository and execute `python
 setup.py develop` in the repository root folder. This approach adds a symbolic
-link to your development directory in Python's search path, ensuring immediate
-access to the latest code version upon (re-)loading the package.
+link to your development directory in Python's search path, ensuring the latest
+code version is sourced when (re-)loading the package.
