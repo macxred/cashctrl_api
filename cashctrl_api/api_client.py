@@ -18,16 +18,16 @@ class CashCtrlAPIClient:
     Attributes:
         organisation (str): The sub-domain of the organization as configured in CashCtrl.
                             Defaults to the value of the `CC_API_ORGANISATION`
-                            environment variable if not explicitly provided. 
+                            environment variable if not explicitly provided.
         api_key (str): The API key used for authenticating with the CashCtrl API.
                        Defaults to the value of the `CC_API_KEY` environment variable
-                       if not explicitly provided. 
+                       if not explicitly provided.
     """
     def __init__(self,
                  organisation=os.getenv("CC_API_ORGANISATION"),
                  api_key=os.getenv("CC_API_KEY")):
         self._api_key = api_key
-        self._base_url = f"https://{organisation}.cashctrl.com/api/v1" 
+        self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
 
     def _request(self, method, endpoint, data=None, params={}):
         url = f"{self._base_url}/{endpoint}"
