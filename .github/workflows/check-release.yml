@@ -49,4 +49,4 @@ jobs:
         run: python setup.py develop
 
       - name: Run tests
-        run: pytest -W ignore::pytest.PytestUnraisableExceptionWarning
+        run: pytest -W error
