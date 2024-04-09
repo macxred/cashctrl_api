@@ -32,12 +32,14 @@ to clone the repository with `git clone git@github.com:macxred/cashctrl_api.git`
 
 ```python
 from cashctrl_api import CashCtrlAPIClient
-
-# Insert your oganisation's name and api_key
+### Create client (using your oganisation's name and api_key)
 cc = CashCtrlAPIClient("<my_organisation>", api_key="<my_api_key>")
+```
 
-# Create a new contact
-# (https://app.cashctrl.com/static/help/en/api/index.html#/person/create.json)
+Contacts (https://app.cashctrl.com/static/help/en/api/index.html#/person/create.json):
+
+```python
+# create a contact
 contact = {
     "firstName": "Tina",
     "lastName": "Test",
@@ -46,12 +48,27 @@ contact = {
 response = cc.post("person/create.json", data=contact)
 id = response["insertId"]
 
-# Look up the contact created above
+# look up the new contact
 response = cc.get("person/read.json", params={'id': id})
 print(response)
 ```
 
-Alternatively, you can provide API Key and organisation as environment variables
+Files (https://app.cashctrl.com/static/help/en/api/index.html#/file):
+
+```python
+myfile = "cctest_img.jpg"
+
+# upload a test file and list files
+myid = cc.file_upload(myfile, "res/")
+
+print(cc.file_list())
+
+# remove the file again. This only works if the filename
+# is unique, otherwise delete the file using the Id (myid)
+cc.file_remove(myfile)
+```
+
+You can also provide the API Key and organisation as environment variables
 `CC_API_KEY` and `CC_API_ORGANISATION`. For example, by setting both variables
 in the shell when starting python:
 
@@ -59,7 +76,7 @@ in the shell when starting python:
 CC_API_ORGANISATION=<myorg> CC_API_KEY=<mykey> python
 ```
 
-Usage in python is now even simpler:
+The python code is then even simpler:
 ```python
 from cashctrl_api import CashCtrlAPIClient
 cc = CashCtrlAPIClient()
