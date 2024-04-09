@@ -157,7 +157,49 @@ class CashCtrlAPIClient:
         if findid > -1:
             return self.file_delete(findid)
 
+    def _cat_list(self):
+
+        def flatten_data(d, parent_text=''):
+            rows = []
+            for item in d:
+                if item['isSystem']:
+                    current_text = ''
+                else:
+                    current_text = parent_text + '/' + item['text'] if parent_text else item['text']
+                    row = {'id': item['id'], 'created': item['created'], 'lastUpdated': item['lastUpdated'], 'parentId': item['parentId'], 'text': item['text'], 'path': current_text}
+                    row['path'] = '/' + row['path']
+                    rows.append(row)
+                if item.get('data'):
+                    rows.extend(flatten_data(item['data'], current_text))
+            return rows
+
+        jcat = self.get("file/category/tree.json")
+        lcat = jcat['data']
+
+        flattened_data = flatten_data(lcat)
+        df = pd.DataFrame(flattened_data, columns=['id', 'parentId', 'text', 'path', 'created', 'lastUpdated'])
+        df.sort_values('path')
+        return df
+
     def file_list(self):
         """Get a table with all files from the server."""
         res_flist = self.get("file/list.json")
         return pd.DataFrame(res_flist['data'])
+
+    def filepath_list(self):
+        """Get a table with all files incl. path (i.e. category) from the server."""
+        xcat = self._cat_list()
+        xcat.rename(columns={'id': 'catId'}, inplace=True)
+
+        xfile = self.file_list()
+        xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'created', 'lastUpdated']]
+        xfile = xfile.sort_values(['categoryId', 'name'])
+
+        merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
+        merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
+        merged_df.drop(['text', 'catId'], axis=1, inplace=True)
+        merged_df.rename(columns={'name': 'filename'}, inplace=True)
+        merged_df.rename(columns={'categoryId': 'catId'}, inplace=True)
+        merged_df = merged_df[['id', 'catId', 'filename', 'path', 'created', 'lastUpdated' ]]
+
+        return merged_df
