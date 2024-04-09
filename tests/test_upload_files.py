@@ -1,5 +1,8 @@
-import os, pytest
+import pathlib
+import pytest
+from pathlib import Path
 from cashctrl_api import CashCtrlAPIClient
+from cashctrl_api.errors import CashCtrlAPIClientError
 
 def test_files():
 
@@ -8,13 +11,13 @@ def test_files():
     cc = CashCtrlAPIClient()
 
     myfile = "res/cctest_img.jpg"
-    if not os.path.isfile(myfile):
+    if not Path(myfile).is_file():
         raise CashCtrlAPIClientError(f"The file test requires the file '{myfile}'")
 
     # test file_list; ensure that there is no testfile already
     name = "autotest_img.jpg"
     df = cc.file_list()
-    if any([x == name for x in df.name]):
+    if any([x == name for x in df['name']]):
         raise CashCtrlAPIClientError(f"The testfile '{name}' is already on the cc server")
 
     # test file_upload: two times, retain id of the first one

@@ -10,6 +10,8 @@ Example usage:
     persons = client.get("person/list.json")
 """
 import json, os, pandas as pd, requests
+from mimetypes import guess_type
+from pathlib import Path
 from .errors import CashCtrlAPIClientError
 
 class CashCtrlAPIClient:
@@ -18,7 +20,7 @@ class CashCtrlAPIClient:
 
     Attributes:
         organisation (str): The sub-domain of the organization as configured in CashCtrl.
-                            Default--s to the value of the `CC_API_ORGANISATION`
+                            Defaults to the value of the `CC_API_ORGANISATION`
                             environment variable if not explicitly provided.
         api_key (str): The API key used for authenticating with the CashCtrl API.
                        Defaults to the value of the `CC_API_KEY` environment variable
@@ -66,31 +68,25 @@ class CashCtrlAPIClient:
             mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed based on the file extension.
 
         Raises:
-            CashCtrlAPIClientError: If the file does not exist at the specified local_path.
+            CashCtrlAPIClientError: If the file does not exist or there is a processing error.
 
         Returns:
             The Id of the newly created object.
         """
+        mypath = Path(local_path)
 
         # local path and MIME type
-        if os.path.isfile(local_path):
-             fname = local_path
+        if mypath.is_file():
+            if mime_type is None: mime_type = guess_type(mypath)[0]
+            fname = str(mypath.resolve())
         else:
-            fname = os.path.abspath(os.path.join(local_path, name))
-            if not os.path.exists(fname):
-                raise CashCtrlAPIClientError(f"File does not exist ('{fname}')")
-        if mime_type is None:
-            match os.path.splitext(name)[1]:
-                    case '.csv':
-                        mime_type = 'text/csv'
-                    case p if (p == '.jpg') or (p == '.jpeg'):
-                        mime_type = 'image/jpeg'
-                    case '.pdf':
-                        mime_type = 'application/pdf'
-                    case _:
-                        mime_type = 'text/plain'
+            mypath = mypath.joinpath(name).resolve()
+            if not mypath.is_file():
+                raise CashCtrlAPIClientError(f"File does not exist ('{mypath}')")
+            if mime_type is None: mime_type = guess_type(mypath)[0]
+            fname = str(mypath)
 
-        # step (1/3A: prepare)
+        # step (1/3: prepare)
         myfilelist = [{"mimeType": mime_type, "name": name}]
         res_prep = self.post("file/prepare.json", params={'files': json.dumps(myfilelist)})
         if not res_prep['success']:
@@ -107,7 +103,7 @@ class CashCtrlAPIClient:
         # step (3/3): persist)
         res_pers = self.post("file/persist.json", params={'ids': myid})
         if not res_pers['success']:
-            raise CashCtrlAPIClientError(f"API file-persist call failed with message: {res_persist['message']}")
+            raise CashCtrlAPIClientError(f"API file-persist call failed with message: {res_pers['message']}")
         return myid
 
     def file_delete(self, id):
