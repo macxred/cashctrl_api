@@ -33,8 +33,15 @@ class CashCtrlAPIClient:
         self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
 
     def _request(self, method, endpoint, data=None, params={}):
+
+        def flatten_dict(d):
+            if d is None:
+                return d
+            else:
+                return {k: (json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in d.items()}
+
         url = f"{self._base_url}/{endpoint}"
-        response = requests.request(method, url, auth=(self._api_key, ''), data=data, params=params)
+        response = requests.request(method, url, auth=(self._api_key, ''), data=flatten_dict(data), params=params)
         if response.status_code != 200:
             raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
         return response.json()
