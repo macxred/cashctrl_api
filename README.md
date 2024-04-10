@@ -39,10 +39,18 @@ cc = CashCtrlAPIClient("<my_organisation>", api_key="<my_api_key>")
 Contacts (https://app.cashctrl.com/static/help/en/api/index.html#/person/create.json):
 
 ```python
+import json
+
 # create a contact
 contact = {
     "firstName": "Tina",
     "lastName": "Test",
+    "addresses":
+        [{"type": "MAIN",
+            "address": "Teststreet 15",
+            "zip": "1234",
+            "city": "Testtown"
+        }],
     "titleId": 2
 }
 response = cc.post("person/create.json", data=contact)
@@ -50,6 +58,10 @@ id = response["insertId"]
 
 # look up the new contact
 response = cc.get("person/read.json", params={'id': id})
+print(response)
+
+# delete the contact again
+response = cc.post("person/delete.json", params={'ids': id})
 print(response)
 ```
 
