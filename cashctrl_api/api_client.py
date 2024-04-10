@@ -13,6 +13,7 @@ import json, os, pandas as pd, requests
 from mimetypes import guess_type
 from pathlib import Path
 from .errors import CashCtrlAPIClientError
+from .errors import CashCtrlAPINoSuccess
 
 class CashCtrlAPIClient:
     """
@@ -47,7 +48,19 @@ class CashCtrlAPIClient:
         response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=params)
         if response.status_code != 200:
             raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
-        return response.json()
+        jreq = response.json()
+
+        # enforce 'success' (if field is here)
+        if 'success' in jreq:
+            if jreq['success']: return jreq
+
+            msg = jreq.get('message', None)
+            if msg is None:
+                msg = " / ".join(error.get('message', '') for error in jreq.get('errors', []) if error.get('message'))
+            if msg == '': msg = '(no message)'
+            raise CashCtrlAPINoSuccess(f"API call failed with message: {msg}")
+        else:
+            return jreq
 
 
     def get(self, endpoint, data=None, params={}):
@@ -78,7 +91,8 @@ class CashCtrlAPIClient:
             mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed based on the file extension.
 
         Raises:
-            CashCtrlAPIClientError: If the file does not exist or there is a processing error.
+            CashCtrlAPIClientError: General errors like file not existing, bad HTML status code etc.
+            CashCtrlAPINoSuccess: If the call indicates failure (i.e. has a 'Success' field with the value 'False')
 
         Returns:
             The Id of the newly created object.
@@ -111,16 +125,12 @@ class CashCtrlAPIClient:
             raise CashCtrlAPIClientError(f"API file-put call failed ({res_put.reason} / {res_put.status_code}")
 
         # step (3/3): persist)
-        res_pers = self.post("file/persist.json", params={'ids': myid})
-        if not res_pers['success']:
-            raise CashCtrlAPIClientError(f"API file-persist call failed with message: {res_pers['message']}")
+        self.post("file/persist.json", params={'ids': myid})
         return myid
 
     def file_delete(self, id):
         """Deletes a file specified by its ID from the server."""
-        res_del = self.post("file/delete.json", params={'ids': id, 'force': True})
-        if not res_del['success']:
-            raise CashCtrlAPIClientError(f"API file-delete call failed with message: {res_del['message']}")
+        self.post("file/delete.json", params={'ids': id, 'force': True})
         return None
 
     def _file_get_Id(self, name, remote_category):
