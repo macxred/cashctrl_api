@@ -48,19 +48,20 @@ class CashCtrlAPIClient:
         response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=params)
         if response.status_code != 200:
             raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
-        jreq = response.json()
+        result = response.json()
 
-        # enforce 'success' (if field is here)
-        if 'success' in jreq:
-            if jreq['success']: return jreq
-
-            msg = jreq.get('message', None)
+        # Enforce 'success' (if field is present)
+        if ('success' in result) and (not result['success']):
+            msg = result.get('message', None)
             if msg is None:
-                msg = " / ".join(error.get('message', '') for error in jreq.get('errors', []) if error.get('message'))
-            if msg == '': msg = '(no message)'
+                errors = result.get('errors', [])
+                msg = " / ".join(error.get('message', '')
+                                 for error in errors if 'message' in error)
+            if msg == '':
+                msg = '(no message)'
             raise CashCtrlAPINoSuccess(f"API call failed with message: {msg}")
-        else:
-            return jreq
+
+        return result
 
 
     def get(self, endpoint, data=None, params={}):
