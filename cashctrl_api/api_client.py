@@ -157,29 +157,29 @@ class CashCtrlAPIClient:
         if findid > -1:
             return self.file_delete(findid)
 
-    def _cat_list(self):
-
-        def flatten_data(d, parent_text=''):
+    def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
+        """
+        Params:
+        - object (str): a CashCtrl object with a category tree, e.g. 'file', etc.
+        - system (bool): if True, return system nodes. Otherwise silently drop system nodes.
+        """
+        def flatten_data(nodes, parent_path=''):
+            if not isinstance(nodes, list):
+                raise ValueError(f"Expecting `nodes' to be a list, not {type(nodes)}.")
             rows = []
-            for item in d:
-                if item['isSystem']:
-                    current_text = ''
-                else:
-                    current_text = parent_text + '/' + item['text'] if parent_text else item['text']
-                    row = {'id': item['id'], 'created': item['created'], 'lastUpdated': item['lastUpdated'], 'parentId': item['parentId'], 'text': item['text'], 'path': current_text}
-                    row['path'] = '/' + row['path']
-                    rows.append(row)
-                if item.get('data'):
-                    rows.extend(flatten_data(item['data'], current_text))
+            for node in nodes:
+                path = f"{parent_path}/{node['text']}"
+                if ('data' in node) and (not node['data'] is None):
+                    data = node.pop('data')
+                    rows.extend(flatten_data(data, path))
+                rows.append({'path': path} | node)
             return rows
 
-        jcat = self.get("file/category/tree.json")
-        lcat = jcat['data']
-
-        flattened_data = flatten_data(lcat)
-        df = pd.DataFrame(flattened_data, columns=['id', 'parentId', 'text', 'path', 'created', 'lastUpdated'])
-        df.sort_values('path')
-        return df
+        data = self.get(f"{object}/category/tree.json")['data']
+        df = pd.DataFrame(flatten_data(data.copy()))
+        if not system:
+            df = df.loc[~df['isSystem'], :]
+        return df.sort_values('path')
 
     def file_list(self):
         """Get a table with all files from the server."""
@@ -188,7 +188,7 @@ class CashCtrlAPIClient:
 
     def filepath_list(self):
         """Get a table with all files incl. path (i.e. category) from the server."""
-        xcat = self._cat_list()
+        xcat = self.list_categories('file')
         xcat.rename(columns={'id': 'catId'}, inplace=True)
 
         xfile = self.file_list()
