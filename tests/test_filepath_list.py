@@ -6,14 +6,21 @@ from cashctrl_api.errors import CashCtrlAPIClientError
 
 def test_filepaths():
 
-    # IMPORTANT:
-    # * this test depends on the 'res/FileMockup/Init/0All' structure. Future changes likely
-    #   will be defined in 'res/FileMockup/Rev1/0All' (or Rev2..) folders
-    # * in addition the ID's are hard-coded (checked) atm
+    # IMPORTANT: this test is very provisional:
+    # - it depends on the 'res/FileMockup/Init/0All' structure
+    # - UI language is supposed to be german ('All files')
+    # - id values for check are hard-coded. This will change if we recreate the structure
+
+    # FIXME: without iloc[0] there is a 'truth value of a Series is ambiguous' error
+    # (don't know pandas well, is iloc the best solution here?)
 
     cc = CashCtrlAPIClient()
-
     df = cc.filepath_list()
 
-    assert(all(df['catId'] == [4,5,6,7,7,8]))
-    assert(all(df[df['catId'] == 8]['path'] == '/2Hallo/21Hallo/211Hallo/211welt.txt'))
+    r72 = df[df['id'] == 72].iloc[0]
+    assert(r72['catId'] == 5)
+    assert(r72['path'] == '/All files/2Hallo/2welt.txt')
+
+    r75 = df[df['id'] == 75].iloc[0]
+    assert(r75['catId'] == 7)
+    assert(r75['filename'] == '21welt2.txt')
