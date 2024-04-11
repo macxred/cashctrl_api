@@ -1,14 +1,17 @@
 """cashctrl_api_client
-
 This module implements the CashCtrlAPIClient class, which facilitates interactions
 with the CashCtrl REST API.
 
-The core functionality is:
-  - base requests (get, post, put, delete)
-  - file_upload
-  - list_categories
+Requests are typically transmitted through generic methods:
+  - `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API
+      `endpoint`, request parameters, and JSON payload as parameters and return
+      the server's response as a JSON dictionary.
+    
+Specialized methods manage more complex tasks:
+  - `file_upload()` uploads files and marks it as persistent.
+  - `list_categories()` retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
 
-Additionaly there is (company) specific functionality:
+Last but not least there are (company) specific tasks, like e.g.:
   - mirror_files
 
 Example usage:
@@ -131,9 +134,19 @@ class CashCtrlAPIClient:
 
     def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
-        Params:
-        - object (str): a CashCtrl object with a category tree, e.g. 'file', etc.
-        - system (bool): if True, return system nodes. Otherwise silently drop system nodes.
+        Retrieves a category tree and converts the nested categories into a 'path' field which has
+        the form of a normal filepath. The 'root folder' depends on the object and, atm, also on
+        the display language. For a german UI this is e.g.: 'Alle Konten', 'Alle Dateien' etc.
+
+        Parameters:
+            object (str): a CashCtrl object with a category tree, e.g. 'account', 'file', etc.
+            system (bool): if True, return system nodes. Otherwise silently drop system nodes.
+
+        Raises:
+            ValueError: For non-supported objects.
+
+        Returns:
+            Pandas DataFrame with the categories and a path column.
         """
         def flatten_data(nodes, parent_path=''):
             if not isinstance(nodes, list):
@@ -152,22 +165,3 @@ class CashCtrlAPIClient:
         if not system:
             df = df.loc[~df['isSystem'], :]
         return df.sort_values('path')
-
-    # TODO: becomes ~mirror_files and will then be removed
-    def filepath_list(self):
-        """Get a table with all files incl. path (i.e. category) from the server."""
-        xcat = self.list_categories('file')
-        xcat.rename(columns={'id': 'catId'}, inplace=True)
-
-        xfile = pd.DataFrame(self.get("file/list.json")['data'])
-        xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'created', 'lastUpdated']]
-        xfile = xfile.sort_values(['categoryId', 'name'])
-
-        merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
-        merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
-        merged_df.drop(['text', 'catId'], axis=1, inplace=True)
-        merged_df.rename(columns={'name': 'filename'}, inplace=True)
-        merged_df.rename(columns={'categoryId': 'catId'}, inplace=True)
-        merged_df = merged_df[['id', 'catId', 'filename', 'path', 'created', 'lastUpdated' ]]
-
-        return merged_df
