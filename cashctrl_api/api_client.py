@@ -1,7 +1,18 @@
 """cashctrl_api_client
-
 This module implements the CashCtrlAPIClient class, which facilitates interactions
 with the CashCtrl REST API.
+
+Requests are typically transmitted through generic methods:
+  - `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API
+      `endpoint`, request parameters, and JSON payload as parameters and return
+      the server's response as a JSON dictionary.
+    
+Specialized methods manage more complex tasks:
+  - `file_upload()` uploads files and marks it as persistent.
+  - `list_categories()` retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
+
+Last but not least there are (company) specific tasks, like e.g.:
+  - mirror_files
 
 Example usage:
     from cashctrl_api import CashCtrlAPIClient
@@ -43,9 +54,14 @@ class CashCtrlAPIClient:
         else:
             flat_data = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
                         for k, v in data.items()}
+        if params is None:
+            flat_params = None
+        else:
+            flat_params = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
+                        for k, v in params.items()}
 
         url = f"{self._base_url}/{endpoint}"
-        response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=params)
+        response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=flat_params)
         if response.status_code != 200:
             raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
         result = response.json()
@@ -77,88 +93,84 @@ class CashCtrlAPIClient:
         return self._request("DELETE", endpoint=None, data=data, params=params)
 
 
-    def file_upload(self, name, local_path, remote_category=None, mime_type=None):
+    def file_upload(self, local_path, remote_name=None, remote_category=None, mime_type=None):
         """
         Uploads a file to the server under a specified category and with an optional MIME type.
 
-        This function takes a file name and its local path to upload the file to the server. It optionally allows
-        specifying the category under which the file should be uploaded and the MIME type of the file. If the MIME type
-        is not specified, it attempts to determine it based on the file extension.
-
         Parameters:
-            name (str): The name of the file.
-            local_path (str): The local path where the file is stored. Either a directory or a full file path (enabling a different local filename).
-            remote_category (str, optional): The category under which the file should be uploaded on the server.
+            local_path (str|Path): A valid path to the local file.
+            remote_name (str): The filename on the remote server; defaults to 'basename(local_path)'
+            remote_category (id, optional): The category under which the file should be uploaded on the server.
             mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed based on the file extension.
-
-        Raises:
-            CashCtrlAPIClientError: General errors like file not existing, bad HTML status code etc.
-            CashCtrlAPINoSuccess: If the call indicates failure (i.e. has a 'Success' field with the value 'False')
 
         Returns:
             The Id of the newly created object.
         """
-        mypath = Path(local_path)
-
-        # local path and MIME type
-        if mypath.is_file():
-            if mime_type is None: mime_type = guess_type(mypath)[0]
-            fname = str(mypath.resolve())
-        else:
-            mypath = mypath.joinpath(name).resolve()
-            if not mypath.is_file():
-                raise CashCtrlAPIClientError(f"File does not exist ('{mypath}')")
-            if mime_type is None: mime_type = guess_type(mypath)[0]
-            fname = str(mypath)
+        # init and checks
+        mypath = Path(local_path).resolve()
+        if not mypath.is_file():
+            raise CashCtrlAPIClientError(f"File does not exist ('{mypath}')")
+        if remote_name is None: remote_name = mypath.name
+        if mime_type is None: mime_type = guess_type(mypath)[0]
 
         # step (1/3: prepare)
-        myfilelist = [{"mimeType": mime_type, "name": name}]
-        res_prep = self.post("file/prepare.json", params={'files': json.dumps(myfilelist)})
-        if not res_prep['success']:
-            raise CashCtrlAPIClientError(f"API file-prepare call failed with message: {res_prep['message']}")
-        myid = res_prep['data'][0]['fileId']
-        write_url = res_prep['data'][0]['writeUrl']
+        myfilelist = [{"mimeType": mime_type, "name": remote_name}]
+        response = self.post("file/prepare.json", params={'files': myfilelist})
+        myid = response['data'][0]['fileId']
+        write_url = response['data'][0]['writeUrl']
 
         # step (2/3): upload)
-        with open(fname, 'rb') as f:
-            res_put = requests.put(write_url, files={fname: f})
-        if res_put.status_code != 200:
-            raise CashCtrlAPIClientError(f"API file-put call failed ({res_put.reason} / {res_put.status_code}")
+        with open(mypath, 'rb') as f:
+            response = requests.put(write_url, files={str(mypath): f})
+        if response.status_code != 200:
+            raise CashCtrlAPIClientError(f"API file-put call failed ({response.reason} / {response.status_code}")
 
         # step (3/3): persist)
         self.post("file/persist.json", params={'ids': myid})
         return myid
 
-    def file_delete(self, id):
-        """Deletes a file specified by its ID from the server."""
-        self.post("file/delete.json", params={'ids': id, 'force': True})
-        return None
-
-    def _file_get_Id(self, name, remote_category):
-        """Map a filename to its id, fails if there are more than one file with the same name."""
-        # FIXME: remote_category support is missing
-        # FIXME: should several names be supported, e.g. give back id of first found name
-        res_flist = self.get("file/list.json")
-        findid = -1
-        for f in res_flist['data']:
-                if name == f['name']:
-                        if findid > -1:
-                                raise CashCtrlAPIClientError(f"There are more than one files with the same name '{name}'")
-                        findid = f['id']
-        return findid
-
-    def file_remove(self, name, remote_category=None):
+    def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
-        Removes a file specified by its name from the server.
+        Retrieves a category tree for a given CashCtrl object and converts it into a Pandas DataFrame.
+        Each category's nested structure is represented as a flat 'path' in Unix-like filepath format.
+        The root name in the 'path' field is dynamic and depends on the object type and the current UI language setting.
 
-        If there are more than one file with the same name, the function fails.
+        This function is designed to work with different CashCtrl objects that have associated category trees,
+        such as 'account', 'file', etc. It can optionally include or exclude system nodes based on the 'system' parameter.
+
+        Parameters:
+            object (str): Specifies the CashCtrl object type with an associated category tree.
+                        Examples include 'account', 'file', etc.
+            system (bool, optional): Determines whether system nodes should be included in the result.
+                                    If True, system nodes are included. If False (default), system nodes are excluded.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the flattened category tree. Each row represents a category,
+                        with a 'path' column indicating the category's hierarchical position in Unix-like filepath format.
+                        Additional columns correspond to properties of each category node.
+
+        Raises:
+            ValueError: If 'object' is not a supported CashCtrl object type or if 'nodes' parameter
+                        expected in the nested 'flatten_data' function is not a list.
+
+        Example:
+            >>> list_categories('account')
+            Returns a DataFrame with the categories' paths and details for the 'account' object, excluding system nodes.
         """
-        # FIXME: should remove all be supported and/or first found?
-        findid = self._file_get_Id(name, remote_category)
-        if findid > -1:
-            return self.file_delete(findid)
+        def flatten_data(nodes, parent_path=''):
+            if not isinstance(nodes, list):
+                raise ValueError(f"Expecting `nodes' to be a list, not {type(nodes)}.")
+            rows = []
+            for node in nodes:
+                path = f"{parent_path}/{node['text']}"
+                if ('data' in node) and (not node['data'] is None):
+                    data = node.pop('data')
+                    rows.extend(flatten_data(data, path))
+                rows.append({'path': path} | node)
+            return rows
 
-    def file_list(self):
-        """Get a table with all files from the server."""
-        res_flist = self.get("file/list.json")
-        return pd.DataFrame(res_flist['data'])
+        data = self.get(f"{object}/category/tree.json")['data']
+        df = pd.DataFrame(flatten_data(data.copy()))
+        if not system:
+            df = df.loc[~df['isSystem'], :]
+        return df.sort_values('path')

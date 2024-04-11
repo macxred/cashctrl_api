@@ -59,7 +59,6 @@ For simplicity, API Key and organization can also be set as environment
 variables `CC_API_KEY` and `CC_API_ORGANISATION`. For example, by setting both
 variables in the shell when starting python:
 
-
 ```bash
 CC_API_ORGANISATION=<myorg> CC_API_KEY=<mykey> python
 ```
