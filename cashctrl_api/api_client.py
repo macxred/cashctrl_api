@@ -136,6 +136,7 @@ class CashCtrlAPIClient:
 
         data = self.get(f"{object}/category/tree.json")['data']
         df = pd.DataFrame(flatten_data(data.copy()))
+        df['level'] = df['path'].apply(lambda x: x.count(('/') - 1))
         if not system:
             df = df.loc[~df['isSystem'], :]
         return df.sort_values('path')
