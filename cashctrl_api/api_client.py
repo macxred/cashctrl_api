@@ -103,9 +103,6 @@ class CashCtrlAPIClient:
             remote_category (id, optional): The category under which the file should be uploaded on the server.
             mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed based on the file extension.
 
-        Raises:
-            CashCtrlAPIClientError: General errors like file not existing, bad HTML status code etc.
-
         Returns:
             The Id of the newly created object.
         """
@@ -118,15 +115,15 @@ class CashCtrlAPIClient:
 
         # step (1/3: prepare)
         myfilelist = [{"mimeType": mime_type, "name": remote_name}]
-        res_prep = self.post("file/prepare.json", params={'files': myfilelist})
-        myid = res_prep['data'][0]['fileId']
-        write_url = res_prep['data'][0]['writeUrl']
+        response = self.post("file/prepare.json", params={'files': myfilelist})
+        myid = response['data'][0]['fileId']
+        write_url = response['data'][0]['writeUrl']
 
         # step (2/3): upload)
         with open(mypath, 'rb') as f:
-            res_put = requests.put(write_url, files={str(mypath): f})
-        if res_put.status_code != 200:
-            raise CashCtrlAPIClientError(f"API file-put call failed ({res_put.reason} / {res_put.status_code}")
+            response = requests.put(write_url, files={str(mypath): f})
+        if response.status_code != 200:
+            raise CashCtrlAPIClientError(f"API file-put call failed ({response.reason} / {response.status_code}")
 
         # step (3/3): persist)
         self.post("file/persist.json", params={'ids': myid})
@@ -134,19 +131,31 @@ class CashCtrlAPIClient:
 
     def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
-        Retrieves a category tree and converts the nested categories into a 'path' field which has
-        the form of a normal filepath. The 'root folder' depends on the object and, atm, also on
-        the display language. For a german UI this is e.g.: 'Alle Konten', 'Alle Dateien' etc.
+        Retrieves a category tree for a given CashCtrl object and converts it into a Pandas DataFrame.
+        Each category's nested structure is represented as a flat 'path' in Unix-like filepath format.
+        The root name in the 'path' field is dynamic and depends on the object type and the current UI language setting.
+
+        This function is designed to work with different CashCtrl objects that have associated category trees,
+        such as 'account', 'file', etc. It can optionally include or exclude system nodes based on the 'system' parameter.
 
         Parameters:
-            object (str): a CashCtrl object with a category tree, e.g. 'account', 'file', etc.
-            system (bool): if True, return system nodes. Otherwise silently drop system nodes.
-
-        Raises:
-            ValueError: For non-supported objects.
+            object (str): Specifies the CashCtrl object type with an associated category tree.
+                        Examples include 'account', 'file', etc.
+            system (bool, optional): Determines whether system nodes should be included in the result.
+                                    If True, system nodes are included. If False (default), system nodes are excluded.
 
         Returns:
-            Pandas DataFrame with the categories and a path column.
+            pd.DataFrame: A DataFrame containing the flattened category tree. Each row represents a category,
+                        with a 'path' column indicating the category's hierarchical position in Unix-like filepath format.
+                        Additional columns correspond to properties of each category node.
+
+        Raises:
+            ValueError: If 'object' is not a supported CashCtrl object type or if 'nodes' parameter
+                        expected in the nested 'flatten_data' function is not a list.
+
+        Example:
+            >>> list_categories('account')
+            Returns a DataFrame with the categories' paths and details for the 'account' object, excluding system nodes.
         """
         def flatten_data(nodes, parent_path=''):
             if not isinstance(nodes, list):
