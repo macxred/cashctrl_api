@@ -28,19 +28,15 @@ class CashCtrlAPIClient:
         # The CashCtrl API does not accept nested json data structures,
         # we need to convert nested lists and dicts to string representation.
         # See https://forum.cashctrl.com/d/644-adresse-anlegen-ueber-api
-        if data is None:
-            flat_data = None
-        else:
-            flat_data = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                        for k, v in data.items()}
-        if params is None:
-            flat_params = None
-        else:
-            flat_params = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                        for k, v in params.items()}
+        def flatten(d):
+            if d is None:
+                return None
+            else:
+                return {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
+                        for k, v in d.items()}
 
         url = f"{self._base_url}/{endpoint}"
-        response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=flat_params)
+        response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params))
         if response.status_code != 200:
             raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
         result = response.json()
