@@ -1,12 +1,10 @@
 Manual testing required:
 
   - initially the file should be empty after the "==..." line
-  - manually upload the file to the root of the server (i.e. no category)
+  - (manually) upload the file to the server
   - then write something after the "==..." line
   - now save (and the local mtime is supposed to be after the server mtime of the file)
-  - call the 'file_update' function and check if 'cctest_update.txt' has been
-    updated on the server
-
+  - call the 'file_update' function and check 'cctest_update.txt' on the server
 
 ===================================================================
-Neu. Nun drittes Mal modifiziert.
+test

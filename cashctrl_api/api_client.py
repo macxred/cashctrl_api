@@ -36,6 +36,8 @@ class CashCtrlAPIClient:
                         for k, v in d.items()}
 
         url = f"{self._base_url}/{endpoint}"
+        # FIXME: Hinweis LE / _file_update Problem
+        # response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params), headers={'Content-Type': 'application/octet-stream'})
         response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params))
         if response.status_code != 200:
             raise requests.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
@@ -254,12 +256,14 @@ class CashCtrlAPIClient:
 
     def mirror_files(self, root):
 
+        root = Path(root).expanduser()
+        if not root.is_dir():
+            raise Exception(f"root '{root}' must be a directory")
+
         ## 1. Preparation (get remote/local files in uniform structure)
 
-        remote_files = _remote_filepath_list(self)
-        # rf = remote_files; print(rf); print(""); print(rf.iloc[0]); print(""); print(rf.iloc[0]['path'])
-        local_files = _local_filepath_list(self, root)
-        # lf = local_files; print(lf); print(""); print(lf.iloc[0]); print(""); print(lf.iloc[0]['path'])
+        remote_files = self._remote_filepath_list()
+        local_files = self._local_filepath_list(root)
 
         ## 2. File Deletion
 
@@ -273,12 +277,11 @@ class CashCtrlAPIClient:
 
         ## 3. Folder/Category Sync
 
-        # Trash/Papierkorb *MUST* be empty. Trashed files might still belong
-        # to a category and would prevent the deletion of an 'empty' category
+        # trashed files might belong to a category and prevent the deletion of an 'empty' category
         self.post("file/empty_archive.json")
 
         remote_categories = self.list_categories('file')
-        _mirror_file_categories(self, local_files, remote_categories)
+        self._mirror_file_categories(local_files, remote_categories)
 
         ## 4.  Upload new or modified files
 
@@ -294,10 +297,8 @@ class CashCtrlAPIClient:
             catid = remote_categories.loc[remote_categories['rootpath'] == str(papath)]['id'].item()
             response = self.file_upload(row['path'], row['filename'], remote_category=catid)
 
-        # TODO: handle modified files (mtime of local file after mtime of remote file)
-        # FIXME:
-        # - need 'POST /api/v1/file/update.json' (https://app.cashctrl.com/static/help/en/api/index.html#/file/update.json)
-        # - this function is not (yet) implemented
+        # FIXME: handle modified files (mtime of local file after mtime of remote file)
+        # - _file_update works but data is inserted into the textfile (reason unknown atm)
 
     def _file_update(self, remote_file_id, remote_category_id, local_path, mime_type):
             """
