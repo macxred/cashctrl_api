@@ -1,46 +1,25 @@
-"""cashctrl_api_client
-This module implements the CashCtrlAPIClient class, which facilitates interactions
-with the CashCtrl REST API.
-
-Requests are typically transmitted through generic methods:
-  - `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API
-      `endpoint`, request parameters, and JSON payload as parameters and return
-      the server's response as a JSON dictionary.
-    
-Specialized methods manage more complex tasks:
-  - `file_upload()` uploads files and marks it as persistent.
-  - `list_categories()` retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
-
-Last but not least there are (company) specific tasks, like e.g.:
-  - mirror_files
-
-Example usage:
-    from cashctrl_api import CashCtrlAPIClient
-
-    client = CashCtrlAPIClient(organisation='myorg', api_key='secret')
-    persons = client.get("person/list.json")
-"""
 import json, os, pandas as pd, requests
 from mimetypes import guess_type
 from pathlib import Path
-from .errors import CashCtrlAPIClientError
-from .errors import CashCtrlAPINoSuccess
 
 class CashCtrlAPIClient:
     """
-    A client for interacting with the CashCtrl REST API.
+    A lightweight wrapper to facilitate interactions with the CashCtrl REST API.
 
-    Attributes:
-        organisation (str): The sub-domain of the organization as configured in CashCtrl.
-                            Defaults to the value of the `CC_API_ORGANISATION`
-                            environment variable if not explicitly provided.
-        api_key (str): The API key used for authenticating with the CashCtrl API.
-                       Defaults to the value of the `CC_API_KEY` environment variable
-                       if not explicitly provided.
+    See package README for an overview and for usage examples: https://github.com/macxred/cashctrl_api
     """
     def __init__(self,
                  organisation=os.getenv("CC_API_ORGANISATION"),
                  api_key=os.getenv("CC_API_KEY")):
+        """
+        Parameters:
+            organisation (str): The sub-domain of the organization as configured in CashCtrl.
+                                Defaults to the value of the `CC_API_ORGANISATION`
+                                environment variable if not explicitly provided.
+            api_key (str): The API key used for authenticating with the CashCtrl API.
+                        Defaults to the value of the `CC_API_KEY` environment variable
+                        if not explicitly provided.
+        """
         self._api_key = api_key
         self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
 
@@ -49,21 +28,17 @@ class CashCtrlAPIClient:
         # The CashCtrl API does not accept nested json data structures,
         # we need to convert nested lists and dicts to string representation.
         # See https://forum.cashctrl.com/d/644-adresse-anlegen-ueber-api
-        if data is None:
-            flat_data = None
-        else:
-            flat_data = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                        for k, v in data.items()}
-        if params is None:
-            flat_params = None
-        else:
-            flat_params = {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                        for k, v in params.items()}
+        def flatten(d):
+            if d is None:
+                return None
+            else:
+                return {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
+                        for k, v in d.items()}
 
         url = f"{self._base_url}/{endpoint}"
-        response = requests.request(method, url, auth=(self._api_key, ''), data=flat_data, params=flat_params)
+        response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params))
         if response.status_code != 200:
-            raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
+            raise requests.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
         result = response.json()
 
         # Enforce 'success' (if field is present)
@@ -75,10 +50,9 @@ class CashCtrlAPIClient:
                                  for error in errors if 'message' in error)
             if msg == '':
                 msg = '(no message)'
-            raise CashCtrlAPINoSuccess(f"API call failed with message: {msg}")
+            raise requests.RequestException(f"API call failed with message: {msg}")
 
         return result
-
 
     def get(self, endpoint, data=None, params={}):
         return self._request("GET", endpoint, data=data, params=params)
@@ -95,13 +69,13 @@ class CashCtrlAPIClient:
 
     def file_upload(self, local_path, remote_name=None, remote_category=None, mime_type=None):
         """
-        Uploads a file to the server under a specified category and with an optional MIME type.
+        Uploads a file to the server and marks it for persistent storage.
 
         Parameters:
-            local_path (str|Path): A valid path to the local file.
-            remote_name (str): The filename on the remote server; defaults to 'basename(local_path)'
-            remote_category (id, optional): The category under which the file should be uploaded on the server.
-            mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed based on the file extension.
+            local_path (str|Path): Path to a local file to upload.
+            remote_name (str): The filename on the remote server; defaults to the name of the local file.
+            remote_category (id, optional): The category under which the file should be stored.
+            mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed from the file extension.
 
         Returns:
             The Id of the newly created object.
@@ -109,53 +83,44 @@ class CashCtrlAPIClient:
         # init and checks
         mypath = Path(local_path).resolve()
         if not mypath.is_file():
-            raise CashCtrlAPIClientError(f"File does not exist ('{mypath}')")
+            raise FileNotFoundError(f"File not found: '{mypath}'.")
         if remote_name is None: remote_name = mypath.name
         if mime_type is None: mime_type = guess_type(mypath)[0]
 
-        # step (1/3: prepare)
+        # step (1/3): prepare
         myfilelist = [{"mimeType": mime_type, "name": remote_name}]
         response = self.post("file/prepare.json", params={'files': myfilelist})
         myid = response['data'][0]['fileId']
         write_url = response['data'][0]['writeUrl']
 
-        # step (2/3): upload)
+        # step (2/3): upload
         with open(mypath, 'rb') as f:
             response = requests.put(write_url, files={str(mypath): f})
         if response.status_code != 200:
-            raise CashCtrlAPIClientError(f"API file-put call failed ({response.reason} / {response.status_code}")
+            raise requests.RequestException(f"File upload failed (status {response.status_code}): {response.reason}.")
 
-        # step (3/3): persist)
+        # step (3/3): persist
         self.post("file/persist.json", params={'ids': myid})
         return myid
 
+
     def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
-        Retrieves a category tree for a given CashCtrl object and converts it into a Pandas DataFrame.
-        Each category's nested structure is represented as a flat 'path' in Unix-like filepath format.
-        The root name in the 'path' field is dynamic and depends on the object type and the current UI language setting.
-
-        This function is designed to work with different CashCtrl objects that have associated category trees,
-        such as 'account', 'file', etc. It can optionally include or exclude system nodes based on the 'system' parameter.
+        Retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
+        Each node's hierarchical position is described as a 'path' in Unix-like filepath format.
+        The function works for all CashCtrl object types with associated category trees, such as 'account', 'file', etc.
 
         Parameters:
             object (str): Specifies the CashCtrl object type with an associated category tree.
                         Examples include 'account', 'file', etc.
-            system (bool, optional): Determines whether system nodes should be included in the result.
+            system (bool, optional): Determines whether system-generated nodes should be included in the result.
                                     If True, system nodes are included. If False (default), system nodes are excluded.
 
         Returns:
             pd.DataFrame: A DataFrame containing the flattened category tree. Each row represents a category,
                         with a 'path' column indicating the category's hierarchical position in Unix-like filepath format.
+                        The path's root name depends on the object type and the current UI language setting.
                         Additional columns correspond to properties of each category node.
-
-        Raises:
-            ValueError: If 'object' is not a supported CashCtrl object type or if 'nodes' parameter
-                        expected in the nested 'flatten_data' function is not a list.
-
-        Example:
-            >>> list_categories('account')
-            Returns a DataFrame with the categories' paths and details for the 'account' object, excluding system nodes.
         """
         def flatten_data(nodes, parent_path=''):
             if not isinstance(nodes, list):

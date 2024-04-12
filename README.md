@@ -7,9 +7,11 @@ In `cashctrl_api`, requests are typically transmitted through generic methods:
 - `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API `endpoint`, request parameters, and JSON payload as parameters and return the server's response as a JSON dictionary.
 
 Specialized methods manage more complex tasks:
-
-- `file_upload()` uploads files and marks it as persistent.
-- `list_categories()` retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
+- `file_upload()` uploads files and marks them for persistent storage.
+- `list_categories()` retrieves a category tree and flattens it to a pandas DataFrame.
+- `mirror_categories()` (TODO) aligns a category tree with a given set of nested categories.
+- `mirror_files()` (TODO) mirrors a local set of nested categories with the category tree on the server.
+    to the server, mapping local sub-folders to categories on the remote server.
 
 To use this Python client, you'll need a valid API key, which can be acquired from your CashCtrl account settings.
 
