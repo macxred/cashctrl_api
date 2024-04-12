@@ -81,7 +81,7 @@ class CashCtrlAPIClient:
             The Id of the newly created object.
         """
         # init and checks
-        mypath = Path(local_path).resolve()
+        mypath = Path(local_path).expanduser().resolve()
         if not mypath.is_file():
             raise FileNotFoundError(f"File not found: '{mypath}'.")
         if remote_name is None: remote_name = mypath.name
@@ -152,150 +152,149 @@ class CashCtrlAPIClient:
             df = df.loc[~df['isSystem'], :]
         return df.sort_values('path')
 
-def _remote_filepath_list(self):
-    """
-    Get a table with all files incl. path (i.e. category) from the server.
-    Columns: id, catid, filename, path, rootpath, mimetype, size, ctime, mtime
-    """
-    xcat = self.list_categories('file')
-    xcat.rename(columns={'id': 'catId'}, inplace=True)
+    def _remote_filepath_list(self):
+        """
+        Get a table with all files incl. path (i.e. category) from the server.
+        Columns: id, catid, filename, path, rootpath, mimetype, size, ctime, mtime
+        """
+        xcat = self.list_categories('file')
+        xcat.rename(columns={'id': 'catId'}, inplace=True)
 
-    xfile = pd.DataFrame(self.get("file/list.json")['data'])
-    xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'size', 'created', 'lastUpdated']]
-    xfile = xfile.sort_values(['categoryId', 'name'])
+        xfile = pd.DataFrame(self.get("file/list.json")['data'])
+        xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'size', 'created', 'lastUpdated']]
+        xfile = xfile.sort_values(['categoryId', 'name'])
 
-    merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
-    merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
-    merged_df.drop(['text', 'catId'], axis=1, inplace=True)
-    merged_df.rename(columns={'name': 'filename'}, inplace=True)
-    merged_df.rename(columns={'categoryId': 'catid'}, inplace=True)
-    merged_df.rename(columns={'mimeType': 'mimetype'}, inplace=True)
-    merged_df.rename(columns={'created': 'ctime'}, inplace=True)
-    merged_df.rename(columns={'lastUpdated': 'mtime'}, inplace=True)
-    merged_df = merged_df[['id', 'catid', 'filename', 'path', 'mimetype', 'size', 'ctime', 'mtime' ]]
+        merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
+        merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
+        merged_df.drop(['text', 'catId'], axis=1, inplace=True)
+        merged_df.rename(columns={'name': 'filename'}, inplace=True)
+        merged_df.rename(columns={'categoryId': 'catid'}, inplace=True)
+        merged_df.rename(columns={'mimeType': 'mimetype'}, inplace=True)
+        merged_df.rename(columns={'created': 'ctime'}, inplace=True)
+        merged_df.rename(columns={'lastUpdated': 'mtime'}, inplace=True)
+        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'mimetype', 'size', 'ctime', 'mtime' ]]
 
-    # check path and replace 'All files' with 'ROOT'
-    if not merged_df['path'].str.startswith('/All files').all():
-        raise Exception("path does not start with '/All files'")
-    merged_df['rootpath'] = merged_df['path'].str.replace('/All files', '/ROOT', regex=False)
-    merged_df = merged_df[['id', 'catid', 'filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime' ]]
-    return merged_df
+        # check path and replace 'All files' with 'ROOT'
+        if not merged_df['path'].str.startswith('/All files').all():
+            raise Exception("path does not start with '/All files'")
+        merged_df['rootpath'] = merged_df['path'].str.replace('/All files', '/ROOT', regex=False)
+        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime' ]]
+        return merged_df
 
-def _local_filepath_list(self, root):
-    """
-    Get a table with all files incl. path from the root folder, skip hidden files.
-    Columns: filename, path, rootpath, mimetype, size, ctime, mtime
-    """
+    def _local_filepath_list(self, root):
+        """
+        Get a table with all files incl. path from the root folder, skip hidden files.
+        Columns: filename, path, rootpath, mimetype, size, ctime, mtime
+        """
 
-    def _stat_to_json(file):
-        """from : https://stackoverflow.com/a/58684090/9770860"""
-        stat = file.stat()
-        attributes = {k[3:]: getattr(stat, k) for k in dir(stat) if k.startswith('st_')}
-        return {'file': str(file)} | attributes
+        def _stat_to_json(file):
+            """from : https://stackoverflow.com/a/58684090/9770860"""
+            stat = file.stat()
+            attributes = {k[3:]: getattr(stat, k) for k in dir(stat) if k.startswith('st_')}
+            return {'file': str(file)} | attributes
 
-    rootpath = Path(root).expanduser()
-    files = [file for file in rootpath.rglob("*") if (file.is_file()) and (file.name[0] != '.')]
-    df = pd.DataFrame([_stat_to_json(file) for file in files])
-    df['ctime'] = pd.to_datetime(df['ctime_ns'], unit='ns').dt.tz_localize('UTC')
-    df['mtime'] = pd.to_datetime(df['mtime_ns'], unit='ns').dt.tz_localize('UTC')
-    df.rename(columns={'file': 'path'}, inplace=True)
+        rootpath = Path(root).expanduser()
+        files = [file for file in rootpath.rglob("*") if (file.is_file()) and (file.name[0] != '.')]
+        df = pd.DataFrame([_stat_to_json(file) for file in files])
+        df['ctime'] = pd.to_datetime(df['ctime_ns'], unit='ns').dt.tz_localize('UTC')
+        df['mtime'] = pd.to_datetime(df['mtime_ns'], unit='ns').dt.tz_localize('UTC')
+        df.rename(columns={'file': 'path'}, inplace=True)
 
-    if not df['path'].str.startswith(str(rootpath)).all():
-        raise Exception(f"path does not start with '{rootpath}'")
-    df['filename'] = df['path'].apply(lambda x: Path(x).name)
-    df['rootpath'] = df['path'].str.replace(str(rootpath), '/ROOT', regex=False)
-    df['mimetype'] = df['path'].apply(lambda x: guess_type(x)[0])
-    df = df[['filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime']]
-    return df
+        if not df['path'].str.startswith(str(rootpath)).all():
+            raise Exception(f"path does not start with '{rootpath}'")
+        df['filename'] = df['path'].apply(lambda x: Path(x).name)
+        df['rootpath'] = df['path'].str.replace(str(rootpath), '/ROOT', regex=False)
+        df['mimetype'] = df['path'].apply(lambda x: guess_type(x)[0])
+        df = df[['filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime']]
+        return df
 
-def _mirror_file_categories(self, local_files, remote_categories):
-    local_folders = local_files['rootpath'].str.replace('/[^/]*$', '', regex=True).unique()
-    local_folders = pd.DataFrame({'rootpath': local_folders}) # need a DataFrame for 'isin' set comparison
+    def _mirror_file_categories(self, local_files, remote_categories):
+        local_folders = local_files['rootpath'].str.replace('/[^/]*$', '', regex=True).unique()
+        local_folders = pd.DataFrame({'rootpath': local_folders}) # need a DataFrame for 'isin' set comparison
 
-    ## step 1: erase orphaned nodes (path does not appear in any file path)
-    ##         (IMPORTANT: trash must be empty as those files prevent category deletion)
+        ## step 1: erase orphaned nodes (path does not appear in any file path)
+        ##         (IMPORTANT: trash must be empty as those files prevent category deletion)
 
-    is_orphaned = [not any(local_files['rootpath'].str.startswith(node)) for node in remote_categories['rootpath']]
-    orphaned = remote_categories.loc[is_orphaned,:].sort_values(by=['level', 'rootpath'], ascending = [False, False])
-    delete_ids = ','.join(orphaned['id'].astype(str))
-    if delete_ids != '': self.post("file/category/delete.json", params={'ids': delete_ids})
+        is_orphaned = [not any(local_files['rootpath'].str.startswith(node)) for node in remote_categories['rootpath']]
+        orphaned = remote_categories.loc[is_orphaned,:].sort_values(by=['level', 'rootpath'], ascending = [False, False])
+        delete_ids = ','.join(orphaned['id'].astype(str))
+        if delete_ids != '': self.post("file/category/delete.json", params={'ids': delete_ids})
 
-    ## step 2: add required categories
+        ## step 2: add required categories
 
-    # use the non-orphaned categories (orphaned ones have just been deleted above...)
-    non_orphaned = [not x for x in is_orphaned]
-    remote_categories = remote_categories.loc[non_orphaned,:]
-    remote_categories_map = {k: v for k, v in zip(remote_categories['rootpath'], remote_categories['id'])}
+        # use the non-orphaned categories (orphaned ones have just been deleted above...)
+        non_orphaned = [not x for x in is_orphaned]
+        remote_categories = remote_categories.loc[non_orphaned,:]
+        remote_categories_map = {k: v for k, v in zip(remote_categories['rootpath'], remote_categories['id'])}
 
-    # which categories are missing?
-    missing_category_idx = ~local_folders['rootpath'].isin(remote_categories['rootpath'])
-    missing_categories = local_folders[missing_category_idx]
+        # which categories are missing?
+        missing_category_idx = ~local_folders['rootpath'].isin(remote_categories['rootpath'])
+        missing_categories = local_folders[missing_category_idx]
 
-    # create missing categories (work from root to leaf)
-    for category in missing_categories['rootpath']:
-        category = category.lstrip('/')
-        nodes = category.split('/')
-        if nodes[0] != 'ROOT': raise Exception("'ROOT' node missing")
-        # handle the 'nodes' of a single rootpath (from root to leaf)
-        for i in range(1, len(nodes)):
-            node_path = '/' + '/'.join(nodes[:(i+1)])
-            if node_path == '/ROOT': continue
-            parent_path = '/' + '/'.join(nodes[:i])
-            # check remote_categories_map, node could have been added by another rootpath
-            if not node_path in remote_categories_map:
-                if parent_path == '/ROOT':
-                    parentid = 0
-                else:
-                    parentid = remote_categories_map[parent_path]
-                # create category for real and add to the map
-                response = self.post("file/category/create.json", params={'name': nodes[i], 'parentId': parentid})
-                new_nodeid = response['insertId']
-                remote_categories_map[node_path] = new_nodeid
+        # create missing categories (work from root to leaf)
+        for category in missing_categories['rootpath']:
+            category = category.lstrip('/')
+            nodes = category.split('/')
+            if nodes[0] != 'ROOT': raise Exception("'ROOT' node missing")
+            # handle the 'nodes' of a single rootpath (from root to leaf)
+            for i in range(1, len(nodes)):
+                node_path = '/' + '/'.join(nodes[:(i+1)])
+                if node_path == '/ROOT': continue
+                parent_path = '/' + '/'.join(nodes[:i])
+                # check remote_categories_map, node could have been added by another rootpath
+                if not node_path in remote_categories_map:
+                    if parent_path == '/ROOT':
+                        parentid = 0
+                    else:
+                        parentid = remote_categories_map[parent_path]
+                    # create category for real and add to the map
+                    response = self.post("file/category/create.json", params={'name': nodes[i], 'parentId': parentid})
+                    new_nodeid = response['insertId']
+                    remote_categories_map[node_path] = new_nodeid
 
+    def mirror_files(self, root):
 
-def mirror_files(self, root):
+        ## 1. Preparation (get remote/local files in uniform structure)
 
-    ## 1. Preparation (get remote/local files in uniform structure)
+        remote_files = _remote_filepath_list(self)
+        # rf = remote_files; print(rf); print(""); print(rf.iloc[0]); print(""); print(rf.iloc[0]['path'])
+        local_files = _local_filepath_list(self, root)
+        # lf = local_files; print(lf); print(""); print(lf.iloc[0]); print(""); print(lf.iloc[0]['path'])
 
-    remote_files = _remote_filepath_list(self)
-    # rf = remote_files; print(rf); print(""); print(rf.iloc[0]); print(""); print(rf.iloc[0]['path'])
-    local_files = _local_filepath_list(self, root)
-    # lf = local_files; print(lf); print(""); print(lf.iloc[0]); print(""); print(lf.iloc[0]['path'])
+        ## 2. File Deletion
 
-    ## 2. File Deletion
+        to_delete = ~remote_files['rootpath'].isin(local_files['rootpath'])
+        if sum(to_delete) > 0:
+            delidx = remote_files[to_delete]['id']
+            # delete remote files, possibly orphaned folders/categories remain
+            myids = ','.join(delidx.astype(str))
+            self.post("file/delete.json", params={'ids': myids, 'force': True})
+            remote_files = remote_files.loc[~to_delete,:]
 
-    to_delete = ~remote_files['rootpath'].isin(local_files['rootpath'])
-    if sum(to_delete) > 0:
-        delidx = remote_files[to_delete]['id']
-        # delete remote files, possibly orphaned folders/categories remain
-        myids = ','.join(delidx.astype(str))
-        self.post("file/delete.json", params={'ids': myids, 'force': True})
-        remote_files = remote_files.loc[~to_delete,:]
+        ## 3. Folder/Category Sync
 
-    ## 3. Folder/Category Sync
+        # Trash/Papierkorb *MUST* be empty. Trashed files might still belong
+        # to a category and would prevent the deletion of an 'empty' category
+        self.post("file/empty_archive.json")
 
-    # Trash/Papierkorb *MUST* be empty. Trashed files might still belong
-    # to a category and would prevent the deletion of an 'empty' category
-    self.post("file/empty_archive.json")
+        remote_categories = self.list_categories('file')
+        _mirror_file_categories(self, local_files, remote_categories)
 
-    remote_categories = self.list_categories('file')
-    _mirror_file_categories(self, local_files, remote_categories)
+        ## 4.  Upload new or modified files
 
-    ## 4.  Upload new or modified files
+        # fetch categories again and compare local/remote file
+        remote_categories = self.list_categories('file')
+        remote_file_exists = local_files['rootpath'].isin(remote_files['rootpath'])
+        remote_file_missing = [not x for x in remote_file_exists]
 
-    # fetch categories again and compare local/remote file
-    remote_categories = self.list_categories('file')
-    remote_file_exists = local_files['rootpath'].isin(remote_files['rootpath'])
-    remote_file_missing = [not x for x in remote_file_exists]
+        # upload missing files
+        uploads = local_files.loc[remote_file_missing]
+        for row in uploads.to_dict('records'):
+            papath = Path(row['rootpath']).parent
+            catid = remote_categories.loc[remote_categories['rootpath'] == str(papath)]['id'].item()
+            response = self.file_upload(row['path'], row['filename'], remote_category=catid)
 
-    # upload missing files
-    uploads = local_files.loc[remote_file_missing]
-    for row in uploads.to_dict('records'):
-        papath = Path(row['rootpath']).parent
-        catid = remote_categories.loc[remote_categories['rootpath'] == str(papath)]['id'].item()
-        response = self.file_upload(row['path'], row['filename'], remote_category=catid)
-
-    # TODO: handle modified files (mtime of local file after mtime of remote file)
-    # FIXME:
-    # - need 'POST /api/v1/file/update.json' (https://app.cashctrl.com/static/help/en/api/index.html#/file/update.json)
-    # - this function is not (yet) implemented
+        # TODO: handle modified files (mtime of local file after mtime of remote file)
+        # FIXME:
+        # - need 'POST /api/v1/file/update.json' (https://app.cashctrl.com/static/help/en/api/index.html#/file/update.json)
+        # - this function is not (yet) implemented
