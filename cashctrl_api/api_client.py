@@ -298,3 +298,42 @@ class CashCtrlAPIClient:
         # FIXME:
         # - need 'POST /api/v1/file/update.json' (https://app.cashctrl.com/static/help/en/api/index.html#/file/update.json)
         # - this function is not (yet) implemented
+
+    def _file_update(self, remote_file_id, remote_category_id, local_path, mime_type):
+            """
+            Updates an existing file on the server with a modified local one.
+            This is a helper function where the caller must ensure that the given
+            values are correct. There are no checks if e.g. file or category exists.
+
+            Parameters:
+                remote_file_id (int): The Id of the file to be replaced.
+                remote_category_id (int): The Id of the category, None if on root level
+                local_path (str|Path): Path to a local file to upload.
+                mime_type (str): The MIME type of the file.
+            """
+            mypath = Path(local_path).expanduser().resolve()
+            remote_name = mypath.name
+
+            # step (1/2: prepare)
+            if remote_category_id is None:
+                myfiles = [{"mimeType": mime_type, "name": remote_name}]
+            else:
+                myfiles = [{"mimeType": mime_type, "name": remote_name, 'categoryId': remote_category_id}]
+            response = self.post("file/prepare.json", params={'files': myfiles})
+            myid = response['data'][0]['fileId']
+            write_url = response['data'][0]['writeUrl']
+
+            # step (2/3): upload
+            with open(mypath, 'rb') as f:
+                response = requests.put(write_url, files={str(mypath): f})
+            if response.status_code != 200:
+                raise requests.RequestException(f"File upload failed (status {response.status_code}): {response.reason}.")
+
+            # step (3/3): replacement
+            if remote_category_id is None:
+                myparam = {"id": remote_file_id, "name": remote_name, "replaceWith": myid}
+            else:
+                myparam = {"id": remote_file_id, "name": remote_name, "categoryId": remote_category_id, "replaceWith": myid}
+
+            response = self.post("file/update.json", params=myparam)
+            return response
