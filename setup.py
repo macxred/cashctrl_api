@@ -7,6 +7,6 @@ setup(
     url='https://github.com/macxred/cashctrl_api',
     author="Lukas Elmiger",
     python_requires='>3.9',
-    install_requires=["requests"],
+    install_requires=['requests', 'pandas'],
     packages=find_packages(exclude=('tests', 'examples'))
 )
