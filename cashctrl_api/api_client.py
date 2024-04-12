@@ -4,9 +4,9 @@ from pathlib import Path
 
 class CashCtrlAPIClient:
     """
-    A leightweight wrapper to facilitate interactions with the CashCtrl REST API.
+    A lightweight wrapper to facilitate interactions with the CashCtrl REST API.
 
-    See package README for an overview and usage examples: https://github.com/macxred/cashctrl_api
+    See package README for an overview and for usage examples: https://github.com/macxred/cashctrl_api
     """
     def __init__(self,
                  organisation=os.getenv("CC_API_ORGANISATION"),
@@ -38,7 +38,7 @@ class CashCtrlAPIClient:
         url = f"{self._base_url}/{endpoint}"
         response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params))
         if response.status_code != 200:
-            raise requests.exceptions.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
+            raise requests.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
         result = response.json()
 
         # Enforce 'success' (if field is present)
