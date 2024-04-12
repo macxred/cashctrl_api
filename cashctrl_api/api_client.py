@@ -87,8 +87,11 @@ class CashCtrlAPIClient:
         if remote_name is None: remote_name = mypath.name
         if mime_type is None: mime_type = guess_type(mypath)[0]
 
-        # step (1/3): prepare
-        myfilelist = [{"mimeType": mime_type, "name": remote_name}]
+        # step (1/3: prepare)
+        if remote_category is None:
+            myfilelist = [{"mimeType": mime_type, "name": remote_name}]
+        else:
+            myfilelist = [{"mimeType": mime_type, "name": remote_name, 'categoryId': remote_category}]
         response = self.post("file/prepare.json", params={'files': myfilelist})
         myid = response['data'][0]['fileId']
         write_url = response['data'][0]['writeUrl']
