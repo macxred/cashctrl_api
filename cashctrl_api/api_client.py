@@ -113,11 +113,17 @@ class CashCtrlAPIClient:
         Each node's hierarchical position is described as a 'path' in Unix-like filepath format.
         The function works for all CashCtrl object types with associated category trees, such as 'account', 'file', etc.
 
+        For the 'file' object a 'rootpath' field will be added where the string 'Alle Dateien' will be
+        replaced by 'ROOT'. This protects from cumbersome language/path details and is much simpler to
+        look at and work with. The `mirror_files` method depends on this.
+
         Parameters:
             object (str): Specifies the CashCtrl object type with an associated category tree.
                         Examples include 'account', 'file', etc.
             system (bool, optional): Determines whether system-generated nodes should be included in the result.
                                     If True, system nodes are included. If False (default), system nodes are excluded.
+            level (int): indicates depth of nesting, root category (and trash) has '0' value.
+            rootpath (str): path where 'Alle Dateien' has been replaced by 'ROOT' (only for 'file' objects)
 
         Returns:
             pd.DataFrame: A DataFrame containing the flattened category tree. Each row represents a category,
@@ -139,7 +145,9 @@ class CashCtrlAPIClient:
 
         data = self.get(f"{object}/category/tree.json")['data']
         df = pd.DataFrame(flatten_data(data.copy()))
-        df['level'] = df['path'].apply(lambda x: x.count(('/') - 1))
+        if object == 'file':
+            df['rootpath'] = df['path'].str.replace('/All files', '/ROOT', regex=False)
+        df['level'] = df['path'].apply(lambda x: x.count('/') - 1)
         if not system:
             df = df.loc[~df['isSystem'], :]
         return df.sort_values('path')
