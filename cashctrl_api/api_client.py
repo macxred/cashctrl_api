@@ -1,8 +1,6 @@
 import json, os, pandas as pd, requests
 from mimetypes import guess_type
 from pathlib import Path
-from .errors import CashCtrlAPIClientError
-from .errors import CashCtrlAPINoSuccess
 
 class CashCtrlAPIClient:
     """
@@ -56,10 +54,9 @@ class CashCtrlAPIClient:
                                  for error in errors if 'message' in error)
             if msg == '':
                 msg = '(no message)'
-            raise CashCtrlAPINoSuccess(f"API call failed with message: {msg}")
+            raise requests.RequestException(f"API call failed with message: {msg}")
 
         return result
-
 
     def get(self, endpoint, data=None, params={}):
         return self._request("GET", endpoint, data=data, params=params)
@@ -90,7 +87,7 @@ class CashCtrlAPIClient:
         # init and checks
         mypath = Path(local_path).resolve()
         if not mypath.is_file():
-            raise CashCtrlAPIClientError(f"File does not exist ('{mypath}')")
+            raise FileNotFoundError(f"File not found: '{mypath}'.")
         if remote_name is None: remote_name = mypath.name
         if mime_type is None: mime_type = guess_type(mypath)[0]
 
@@ -104,7 +101,7 @@ class CashCtrlAPIClient:
         with open(mypath, 'rb') as f:
             response = requests.put(write_url, files={str(mypath): f})
         if response.status_code != 200:
-            raise CashCtrlAPIClientError(f"API file-put call failed ({response.reason} / {response.status_code}")
+            raise requests.RequestException(f"File upload failed (status {response.status_code}): {response.reason}.")
 
         # step (3/3): persist
         self.post("file/persist.json", params={'ids': myid})
