@@ -108,7 +108,6 @@ class CashCtrlAPIClient:
         self.post("file/persist.json", params={'ids': myid})
         return myid
 
-
     def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
         Retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
@@ -154,63 +153,67 @@ class CashCtrlAPIClient:
             df = df.loc[~df['isSystem'], :]
         return df.sort_values('path')
 
-    def _remote_filepath_list(self):
+    def mirror_files(self, root):
         """
-        Get a table with all files incl. path (i.e. category) from the server.
-        Columns: id, catid, filename, path, rootpath, mimetype, size, ctime, mtime
+        Mirrors the local files on the server. Works but has the following limitations
+        which need to be fixed (FIXME):
+        - edge conditions (e.g. code fails when there are no local files)
+        - file update doesn't work correctly, see _file_update
+        - local test work for 'res/FileMockup/...' but not within Github Actions
+
+        Parameters:
+            root (str|Path): Path of the local directory to mirror.
         """
-        xcat = self.list_categories('file')
-        xcat.rename(columns={'id': 'catId'}, inplace=True)
+        root = Path(root).expanduser()
+        if not root.is_dir():
+            raise Exception(f"root '{root}' must be a directory")
 
-        xfile = pd.DataFrame(self.get("file/list.json")['data'])
-        xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'size', 'created', 'lastUpdated']]
-        xfile = xfile.sort_values(['categoryId', 'name'])
+        ## 1. Preparation (get remote/local files in uniform structure)
 
-        merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
-        merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
-        merged_df.drop(['text', 'catId'], axis=1, inplace=True)
-        merged_df.rename(columns={'name': 'filename'}, inplace=True)
-        merged_df.rename(columns={'categoryId': 'catid'}, inplace=True)
-        merged_df.rename(columns={'mimeType': 'mimetype'}, inplace=True)
-        merged_df.rename(columns={'created': 'ctime'}, inplace=True)
-        merged_df.rename(columns={'lastUpdated': 'mtime'}, inplace=True)
-        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'mimetype', 'size', 'ctime', 'mtime' ]]
+        remote_files = self._remote_filepath_list()
+        local_files = self._local_filepath_list(root)
 
-        # check path and replace 'All files' with 'ROOT'
-        if not merged_df['path'].str.startswith('/All files').all():
-            raise Exception("path does not start with '/All files'")
-        merged_df['rootpath'] = merged_df['path'].str.replace('/All files', '/ROOT', regex=False)
-        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime' ]]
-        return merged_df
+        ## 2. File Deletion
 
-    def _local_filepath_list(self, root):
-        """
-        Get a table with all files incl. path from the root folder, skip hidden files.
-        Columns: filename, path, rootpath, mimetype, size, ctime, mtime
-        """
+        to_delete = ~remote_files['rootpath'].isin(local_files['rootpath'])
+        if sum(to_delete) > 0:
+            delidx = remote_files[to_delete]['id']
+            # delete remote files, possibly orphaned folders/categories remain
+            myids = ','.join(delidx.astype(str))
+            self.post("file/delete.json", params={'ids': myids, 'force': True})
+            remote_files = remote_files.loc[~to_delete,:]
 
-        def _stat_to_json(file):
-            """from : https://stackoverflow.com/a/58684090/9770860"""
-            stat = file.stat()
-            attributes = {k[3:]: getattr(stat, k) for k in dir(stat) if k.startswith('st_')}
-            return {'file': str(file)} | attributes
+        ## 3. Folder/Category Sync
 
-        rootpath = Path(root).expanduser()
-        files = [file for file in rootpath.rglob("*") if (file.is_file()) and (file.name[0] != '.')]
-        df = pd.DataFrame([_stat_to_json(file) for file in files])
-        df['ctime'] = pd.to_datetime(df['ctime_ns'], unit='ns').dt.tz_localize('UTC')
-        df['mtime'] = pd.to_datetime(df['mtime_ns'], unit='ns').dt.tz_localize('UTC')
-        df.rename(columns={'file': 'path'}, inplace=True)
+        # trashed files still may have a category reference and can prevent
+        # the deletion of an 'empty' category. Trash must be emptied!
+        self.post("file/empty_archive.json")
 
-        if not df['path'].str.startswith(str(rootpath)).all():
-            raise Exception(f"path does not start with '{rootpath}'")
-        df['filename'] = df['path'].apply(lambda x: Path(x).name)
-        df['rootpath'] = df['path'].str.replace(str(rootpath), '/ROOT', regex=False)
-        df['mimetype'] = df['path'].apply(lambda x: guess_type(x)[0])
-        df = df[['filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime']]
-        return df
+        remote_categories = self.list_categories('file')
+        self._mirror_file_categories(local_files, remote_categories)
+
+        ## 4.  Upload new or modified files
+
+        # fetch categories again and compare local/remote file
+        remote_categories = self.list_categories('file')
+        remote_file_exists = local_files['rootpath'].isin(remote_files['rootpath'])
+        remote_file_missing = [not x for x in remote_file_exists]
+
+        # update existing files when there are more recent (mtime) local modifications 
+        # FIXME: impl missing and, much worse, _file_update doesn't work correctly atm
+
+        # upload missing files
+        uploads = local_files.loc[remote_file_missing]
+        for row in uploads.to_dict('records'):
+            papath = Path(row['rootpath']).parent
+            catid = remote_categories.loc[remote_categories['rootpath'] == str(papath)]['id'].item()
+            response = self.file_upload(row['path'], row['filename'], remote_category=catid)
 
     def _mirror_file_categories(self, local_files, remote_categories):
+        """
+        Helper function for mirror_files. Mirrors the local path hierarchy to nested
+        categories on the Server.
+        """
         local_folders = local_files['rootpath'].str.replace('/[^/]*$', '', regex=True).unique()
         local_folders = pd.DataFrame({'rootpath': local_folders}) # need a DataFrame for 'isin' set comparison
 
@@ -254,57 +257,74 @@ class CashCtrlAPIClient:
                     new_nodeid = response['insertId']
                     remote_categories_map[node_path] = new_nodeid
 
-    def mirror_files(self, root):
+    def _local_filepath_list(self, root):
+        """
+        Get a table with all files incl. path from the root folder, skip hidden files. Note the
+        'rootpath' column which summarizes all nodes up to the root folder to be compared.
+        """
 
-        root = Path(root).expanduser()
-        if not root.is_dir():
-            raise Exception(f"root '{root}' must be a directory")
+        def _stat_to_json(file):
+            """from : https://stackoverflow.com/a/58684090/9770860"""
+            stat = file.stat()
+            attributes = {k[3:]: getattr(stat, k) for k in dir(stat) if k.startswith('st_')}
+            return {'file': str(file)} | attributes
 
-        ## 1. Preparation (get remote/local files in uniform structure)
+        rootpath = Path(root).expanduser()
+        files = [file for file in rootpath.rglob("*") if (file.is_file()) and (file.name[0] != '.')]
+        df = pd.DataFrame([_stat_to_json(file) for file in files])
+        df['ctime'] = pd.to_datetime(df['ctime_ns'], unit='ns').dt.tz_localize('UTC')
+        df['mtime'] = pd.to_datetime(df['mtime_ns'], unit='ns').dt.tz_localize('UTC')
+        df.rename(columns={'file': 'path'}, inplace=True)
 
-        remote_files = self._remote_filepath_list()
-        local_files = self._local_filepath_list(root)
+        if not df['path'].str.startswith(str(rootpath)).all():
+            raise Exception(f"path does not start with '{rootpath}'")
+        df['filename'] = df['path'].apply(lambda x: Path(x).name)
+        df['rootpath'] = df['path'].str.replace(str(rootpath), '/ROOT', regex=False)
+        df['mimetype'] = df['path'].apply(lambda x: guess_type(x)[0])
+        df = df[['filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime']]
+        return df
 
-        ## 2. File Deletion
+    def _remote_filepath_list(self):
+        """
+        Get a table with all files incl. path (i.e. categories) from the server. Note the
+        'rootpath' column which abstracts from the language ('All files') and potentially
+        also from the object.
+        """
+        xcat = self.list_categories('file')
+        xcat.rename(columns={'id': 'catId'}, inplace=True)
 
-        to_delete = ~remote_files['rootpath'].isin(local_files['rootpath'])
-        if sum(to_delete) > 0:
-            delidx = remote_files[to_delete]['id']
-            # delete remote files, possibly orphaned folders/categories remain
-            myids = ','.join(delidx.astype(str))
-            self.post("file/delete.json", params={'ids': myids, 'force': True})
-            remote_files = remote_files.loc[~to_delete,:]
+        xfile = pd.DataFrame(self.get("file/list.json")['data'])
+        xfile = xfile[['id', 'categoryId', 'name', 'mimeType', 'size', 'created', 'lastUpdated']]
+        xfile = xfile.sort_values(['categoryId', 'name'])
 
-        ## 3. Folder/Category Sync
+        merged_df = pd.merge(xfile, xcat[['catId', 'text', 'path']], left_on='categoryId', right_on='catId', how='left')
+        merged_df['path'] = merged_df['path'] + '/' + merged_df['name']
+        merged_df.drop(['text', 'catId'], axis=1, inplace=True)
+        merged_df.rename(columns={'name': 'filename'}, inplace=True)
+        merged_df.rename(columns={'categoryId': 'catid'}, inplace=True)
+        merged_df.rename(columns={'mimeType': 'mimetype'}, inplace=True)
+        merged_df.rename(columns={'created': 'ctime'}, inplace=True)
+        merged_df.rename(columns={'lastUpdated': 'mtime'}, inplace=True)
+        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'mimetype', 'size', 'ctime', 'mtime' ]]
 
-        # trashed files might belong to a category and prevent the deletion of an 'empty' category
-        self.post("file/empty_archive.json")
-
-        remote_categories = self.list_categories('file')
-        self._mirror_file_categories(local_files, remote_categories)
-
-        ## 4.  Upload new or modified files
-
-        # fetch categories again and compare local/remote file
-        remote_categories = self.list_categories('file')
-        remote_file_exists = local_files['rootpath'].isin(remote_files['rootpath'])
-        remote_file_missing = [not x for x in remote_file_exists]
-
-        # upload missing files
-        uploads = local_files.loc[remote_file_missing]
-        for row in uploads.to_dict('records'):
-            papath = Path(row['rootpath']).parent
-            catid = remote_categories.loc[remote_categories['rootpath'] == str(papath)]['id'].item()
-            response = self.file_upload(row['path'], row['filename'], remote_category=catid)
-
-        # FIXME: handle modified files (mtime of local file after mtime of remote file)
-        # - _file_update works but data is inserted into the textfile (reason unknown atm)
+        # check path and replace 'All files' with 'ROOT'
+        if not merged_df['path'].str.startswith('/All files').all():
+            raise Exception("path does not start with '/All files'")
+        merged_df['rootpath'] = merged_df['path'].str.replace('/All files', '/ROOT', regex=False)
+        merged_df = merged_df[['id', 'catid', 'filename', 'path', 'rootpath', 'mimetype', 'size', 'ctime', 'mtime' ]]
+        return merged_df
 
     def _file_update(self, remote_file_id, remote_category_id, local_path, mime_type):
             """
-            Updates an existing file on the server with a modified local one.
-            This is a helper function where the caller must ensure that the given
-            values are correct. There are no checks if e.g. file or category exists.
+            Update an existing file on the server with a modified local file. This does not
+            change the Id of the remote file. FIXME: unfortunately there is an error: the contents
+            will be updated but artefacts are added to the file. Reason unknown, maybe it has
+            something to do with "headers={'Content-Type': 'application/octet-stream'}"? Example
+            of the artefact (the first line is also inserted at the end of the file):
+
+            --ca2e2425d441d5621445ef99bc01212d
+            Content-Disposition: form-data; name="/Users/chappi/dev/prj/le24/dev/cashctrl_api/res/cctest_update.txt";
+            filename="cctest_update.txt"
 
             Parameters:
                 remote_file_id (int): The Id of the file to be replaced.
