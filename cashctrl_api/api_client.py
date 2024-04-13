@@ -1,6 +1,7 @@
 import json, os, pandas as pd, requests
 from mimetypes import guess_type
 from pathlib import Path
+from typing import List
 
 class CashCtrlAPIClient:
     """
@@ -129,27 +130,24 @@ class CashCtrlAPIClient:
         with open(Path(file).resolve(), 'wb') as f:
             f.write(response.content)
 
-    def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
+    def list_categories(self, resource: str, include_system: bool = False) -> pd.DataFrame:
         """
-        Retrieves a category tree and converts the nested categories into a flat pd.DataFrame.
-        Each node's hierarchical position is described as a 'path' in Unix-like filepath format.
-        The function works for all CashCtrl object types with associated category trees, such as 'account', 'file', etc.
+        Retrieves a category tree from the specified resource type ('account', 'file', etc.) and flattens it into a
+        DataFrame. The resulting DataFrame includes a 'path' column that represents each category's hierarchical
+        position, formatted as a Unix-like filepath.
 
         Parameters:
-            object (str): Specifies the CashCtrl object type with an associated category tree.
-                        Examples include 'account', 'file', etc.
-            system (bool, optional): Determines whether system-generated nodes should be included in the result.
-                                    If True, system nodes are included. If False (default), system nodes are excluded.
+            resource (str): Type of resource with an associated category tree (e.g., 'account', 'file').
+            include_system (bool, optional): If True, includes system-generated nodes in the result if True.
+                    Default is False, excluding system nodes and omitting the system root node in path names.
 
         Returns:
-            pd.DataFrame: A DataFrame containing the flattened category tree. Each row represents a category,
-                        with a 'path' column indicating the category's hierarchical position in Unix-like filepath format.
-                        The path's root name depends on the object type and the current UI language setting.
-                        Additional columns correspond to properties of each category node.
+            pd.DataFrame: A DataFrame where each row represents a category. The 'path' column indicates the category's
+                        hierarchical position. Additional columns correspond to properties of each category node.
         """
         def flatten_data(nodes, parent_path=''):
             if not isinstance(nodes, list):
-                raise ValueError(f"Expecting `nodes' to be a list, not {type(nodes)}.")
+                raise ValueError(f"Expected 'nodes' to be a list, got {type(nodes)}.")
             rows = []
             for node in nodes:
                 path = f"{parent_path}/{node['text']}"
@@ -159,8 +157,50 @@ class CashCtrlAPIClient:
                 rows.append({'path': path} | node)
             return rows
 
-        data = self.get(f"{object}/category/tree.json")['data']
+        data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_data(data.copy()))
-        if not system:
+        if not include_system:
             df = df.loc[~df['isSystem'], :]
+            # Remove first node (the system root) from paths
+            df['path'] = df['path'].str.replace('^/+[^/]+', '', regex=True)
+
         return df.sort_values('path')
+
+
+    def update_categories(self, resource: str, categories: List[str], delete: bool = False) -> None:
+        """
+        Aligns the server's category tree for a given resource type ('account', 'file', etc.) with specified
+        set of category paths. Categories that do not exist on the server will be created, and optionally,
+        categories that do not appear in the list can be deleted.
+
+        Parameters:
+            resource (str): Type of resource (e.g., 'account', 'file') for which categories are managed.
+            categories (List[str]): List of target category paths in Unix-like filepath format.
+            delete (bool, optional): If True, deletes server categories that do not have corresponding local categories.
+                                    Default is False.
+
+        """
+        remote_categories_df = self.list_categories(resource=resource)
+        remote_categories = dict(zip(remote_categories_df['path'], remote_categories_df['id']))
+
+        if delete:
+            target_categories_df = pd.Series(categories)
+            to_delete = [node for node in remote_categories_df['path']
+                        if not target_categories_df.str.startswith(node).any()]
+            if to_delete:
+                delete_ids = [str(remote_categories.pop(node)) for node in to_delete]
+                self.post(f"{resource}/category/delete.json", params={'ids': ','.join(delete_ids)})
+
+        # Create missing categories
+        missing_leaves = set(categories).difference(remote_categories)
+        for category in missing_leaves:
+            nodes = category.split('/')
+            for i in range(1, len(nodes)):
+                node_path = '/'.join(nodes[:i+1])
+                parent_path = '/'.join(nodes[:i])
+                if node_path not in remote_categories:
+                    params={'name': nodes[i]}
+                    if parent_path != '':
+                        params['parentId'] = remote_categories[parent_path]
+                    response = self.post(f"{resource}/category/create.json", params=params)
+                    remote_categories[node_path] = response['insertId']
