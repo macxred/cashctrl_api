@@ -7,7 +7,8 @@ In `cashctrl_api`, requests are typically transmitted through generic methods:
 - `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API `endpoint`, request parameters, and JSON payload as parameters and return the server's response as a JSON dictionary.
 
 Specialized methods manage more complex tasks:
-- `file_upload()` uploads files and marks them for persistent storage.
+- `file_upload()` uploads a file and marks it for persistent storage.
+- `file_download()` downloads a file and saves it to the local file system.
 - `list_categories()` retrieves a category tree and flattens it to a pandas DataFrame.
 - `mirror_categories()` (TODO) aligns a category tree with a given set of nested categories.
 - `mirror_files()` (TODO) mirrors a local set of nested categories with the category tree on the server.

@@ -23,7 +23,7 @@ class CashCtrlAPIClient:
         self._api_key = api_key
         self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
 
-    def _request(self, method, endpoint, data=None, params={}):
+    def _raw_request(self, method, endpoint, data=None, params={}):
 
         # The CashCtrl API does not accept nested json data structures,
         # we need to convert nested lists and dicts to string representation.
@@ -39,8 +39,11 @@ class CashCtrlAPIClient:
         response = requests.request(method, url, auth=(self._api_key, ''), data=flatten(data), params=flatten(params))
         if response.status_code != 200:
             raise requests.HTTPError(f"API request failed with status {response.status_code}: {response.text}")
-        result = response.json()
+        return response
 
+    def _request(self, method, endpoint, data=None, params={}):
+        response = self._raw_request(method=method, endpoint=endpoint, data=data, params=params)
+        result = response.json()
         # Enforce 'success' (if field is present)
         if ('success' in result) and (not result['success']):
             msg = result.get('message', None)
@@ -104,6 +107,17 @@ class CashCtrlAPIClient:
         self.post("file/persist.json", params={'ids': myid})
         return myid
 
+    def file_download(self, id: (int | str), file: (str | Path)):
+        """
+        Download a file identified by a remote id and save it to a local path.
+
+        Parameters:
+            id (int | str): The filename on the remote server; defaults to the name of the local file.
+            path (str|Path): Path where to store the file.
+        """
+        response = self._raw_request('GET', endpoint='file/get', params={'id': id})
+        with open(Path(file).resolve(), 'wb') as f:
+            f.write(response.content)
 
     def list_categories(self, object: str, system: bool=False) -> pd.DataFrame:
         """
