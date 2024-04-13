@@ -70,14 +70,16 @@ class CashCtrlAPIClient:
         return self._request("DELETE", endpoint=None, data=data, params=params)
 
 
-    def file_upload(self, local_path, remote_name=None, remote_category=None, mime_type=None):
+    def file_upload(self, local_path, id=None, remote_name=None, remote_category=None, mime_type=None):
         """
         Uploads a file to the server and marks it for persistent storage.
 
         Parameters:
             local_path (str|Path): Path to a local file to upload.
+            id (int | str | None): Remote file id. If other than None, the remote file with given `id`
+                is replaced with the newly uploaded file.
             remote_name (str): The filename on the remote server; defaults to the name of the local file.
-            remote_category (id, optional): The category under which the file should be stored.
+            remote_category (int | str | None): The remote category id under which the file should be stored.
             mime_type (str, optional): The MIME type of the file. If None, the MIME type will be guessed from the file extension.
 
         Returns:
@@ -92,6 +94,8 @@ class CashCtrlAPIClient:
 
         # step (1/3): prepare
         myfilelist = [{"mimeType": mime_type, "name": remote_name}]
+        if remote_category is not None:
+            myfilelist['categoryId': remote_category]
         response = self.post("file/prepare.json", params={'files': myfilelist})
         myid = response['data'][0]['fileId']
         write_url = response['data'][0]['writeUrl']
@@ -104,8 +108,14 @@ class CashCtrlAPIClient:
             raise requests.RequestException(f"File upload failed (status {response.status_code}): {response.reason}.")
 
         # step (3/3): persist
-        self.post("file/persist.json", params={'ids': myid})
-        return myid
+        if id is None:
+            self.post("file/persist.json", params={'ids': myid})
+            return myid
+        else:
+            # Replace file with given remote file id
+            params = {"id": id, "name": remote_name, "replaceWith": myid, "categoryId": remote_category}
+            response = self.post("file/update.json", params=params)
+            return id
 
     def file_download(self, id: (int | str), file: (str | Path)):
         """
