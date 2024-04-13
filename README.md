@@ -1,21 +1,21 @@
 # Python Client for CashCtrl REST API
 
-`cashctrl_api` is a lightweight Python package that streamlines interaction with the [CashCtrl REST API](https://app.cashctrl.com/static/help/en/api/index.html). This API serves [CashCtrl](https://cashctrl.com), a straightforward and effective online accounting software with a beautifully clear data model. Our package acts as a thin wrapper, efficiently routing requests through universal methods to the API without implementing individual endpoints.
+`cashctrl_api` is a lightweight Python package that streamlines interactions with the [CashCtrl REST API](https://app.cashctrl.com/static/help/en/api/index.html). This API serves [CashCtrl](https://cashctrl.com), a straightforward and effective online accounting software with a clean data model and a clear REST API. Our package acts as a thin wrapper, efficiently routing requests through universal methods to the API without the need for implementing individual endpoints.
 
 In `cashctrl_api`, requests are typically transmitted through generic methods:
 
-- `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API `endpoint`, request parameters, and JSON payload as parameters and return the server's response as a JSON dictionary.
+- `get()`, `post()`, `patch()`, `put()`, and `delete()` take an API `endpoint`, request parameters, and a JSON payload as parameters, and return the server's response as a JSON dictionary.
 
 Specialized methods manage more complex tasks:
 - `file_upload()` uploads a file and marks it for persistent storage.
 - `file_download()` downloads a file and saves it to the local file system.
-- `list_categories()` retrieves a category tree and flattens it to a pandas DataFrame.
+- `list_categories()` retrieves a category tree and flattens it into a pandas DataFrame.
 - `update_categories()` synchronizes a remote category tree with a given list of category paths,
    adding new categories and optionally removing those that are no longer needed.
 - `mirror_files()` (TODO) mirrors a local set of nested categories with the category tree on the server.
     to the server, mapping local sub-folders to categories on the remote server.
 
-To use this Python client, you'll need a valid API key, which can be acquired from your CashCtrl account settings.
+To use this Python client, you'll need a valid API key, which can be acquired from your CashCtrl account settings -> Users & roles -> Add [API User].
 
 ## Installation
 
@@ -76,13 +76,14 @@ response = cc.get("person/list.json")
 
 ## Testing Strategy
 
-We prefer pytest for its straightforward and readable syntax over the unittest
-package. Tests are housed in the [cashctrl_api/tests](tests) directory.
+Tests are housed in the [tests](tests) directory and are automatically executed
+via GitHub Actions after each commit, during pull requests, and on a daily
+schedule. When executed as GitHub Actions, tests utilize an API key stored as a
+GitHub secret, connecting to a non-public CashCtrl Test organization covered by
+MaCX ReD's subscription.
 
-Tests are automated through GitHub Actions after each commit, during pull
-requests, and daily. When executed as GitHub Actions, tests utilize an API key
-stored as a GitHub secret, connecting to a non-public CashCtrl Test
-organization covered by MaCX ReD's subscription.
+We prefer pytest for its straightforward and readable syntax over the unittest
+package from the standard library.
 
 
 ## Package Development and Contribution

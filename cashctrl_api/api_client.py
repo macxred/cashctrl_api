@@ -7,7 +7,7 @@ class CashCtrlAPIClient:
     """
     A lightweight wrapper to facilitate interactions with the CashCtrl REST API.
 
-    See package README for an overview and for usage examples: https://github.com/macxred/cashctrl_api
+    For an overview and for usage examples, see README on https://github.com/macxred/cashctrl_api.
     """
     def __init__(self,
                  organisation=os.getenv("CC_API_ORGANISATION"),
