@@ -95,7 +95,8 @@ class CashCtrlAPIClient:
 
         # step (2/3): upload
         with open(mypath, 'rb') as f:
-            response = requests.put(write_url, files={str(mypath): f})
+            response = requests.put(write_url, f,
+                headers = {'Content-Type': 'application/octet-stream'})
         if response.status_code != 200:
             raise requests.RequestException(f"File upload failed (status {response.status_code}): {response.reason}.")
 
