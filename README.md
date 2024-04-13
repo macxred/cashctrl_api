@@ -10,7 +10,8 @@ Specialized methods manage more complex tasks:
 - `file_upload()` uploads a file and marks it for persistent storage.
 - `file_download()` downloads a file and saves it to the local file system.
 - `list_categories()` retrieves a category tree and flattens it to a pandas DataFrame.
-- `mirror_categories()` (TODO) aligns a category tree with a given set of nested categories.
+- `update_categories()` synchronizes a remote category tree with a given list of category paths,
+   adding new categories and optionally removing those that are no longer needed.
 - `mirror_files()` (TODO) mirrors a local set of nested categories with the category tree on the server.
     to the server, mapping local sub-folders to categories on the remote server.
 
