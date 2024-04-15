@@ -90,13 +90,17 @@ class CashCtrlAPIClient:
         if not mypath.is_file():
             raise FileNotFoundError(f"File not found: '{mypath}'.")
         if remote_name is None: remote_name = mypath.name
-        if mime_type is None: mime_type = guess_type(mypath)[0]
+        if mime_type is None:
+            mime_type = guess_type(mypath)[0]
+            if mime_type is None:
+                # If MIME type can not be guessed, we use 'text' as default
+                mime_type = 'text/plain'
 
         # step (1/3): prepare
-        myfilelist = [{"mimeType": mime_type, "name": remote_name}]
-        if remote_category is not None:
-            myfilelist['categoryId': remote_category]
-        response = self.post("file/prepare.json", params={'files': myfilelist})
+        files = [{"mimeType": mime_type, "name": remote_name, 'categoryId': remote_category}]
+        response = self.post("file/prepare.json", params={'files': files})
+        if len(response['data']) != 1:
+            raise ValueError("Expected response['data'] with length 1, got length {len(response['data'])}.")
         myid = response['data'][0]['fileId']
         write_url = response['data'][0]['writeUrl']
 
