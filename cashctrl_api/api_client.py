@@ -192,7 +192,7 @@ class CashCtrlAPIClient:
                 self.post(f"{resource}/category/delete.json", params={'ids': ','.join(delete_ids)})
 
         # Create missing categories
-        missing_leaves = set(categories).difference(remote_categories)
+        missing_leaves = set(categories).difference(remote_categories).difference('/')
         for category in missing_leaves:
             nodes = category.split('/')
             for i in range(1, len(nodes)):
