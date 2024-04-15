@@ -50,11 +50,10 @@ class CashCtrlAPIClient:
             msg = result.get('message', None)
             if msg is None:
                 errors = result.get('errors', [])
-                msg = " / ".join(error.get('message', '')
-                                 for error in errors if 'message' in error)
-            if msg == '':
-                msg = '(no message)'
-            raise requests.RequestException(f"API call failed with message: {msg}")
+                msg = [(f"{error.get('field', '')}: " if error.get('field', '') is not None else '') +
+                       error.get('message', '') for error in errors if 'message' in error]
+                msg = " / ".join(msg)
+            raise requests.RequestException(f"API call failed. {msg}")
 
         return result
 
