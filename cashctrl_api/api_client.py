@@ -2,6 +2,7 @@ import json, os, pandas as pd, requests
 from mimetypes import guess_type
 from pathlib import Path
 from typing import List
+from .list_directory import list_directory
 
 class CashCtrlAPIClient:
     """
@@ -90,13 +91,17 @@ class CashCtrlAPIClient:
         if not mypath.is_file():
             raise FileNotFoundError(f"File not found: '{mypath}'.")
         if remote_name is None: remote_name = mypath.name
-        if mime_type is None: mime_type = guess_type(mypath)[0]
+        if mime_type is None:
+            mime_type = guess_type(mypath)[0]
+            if mime_type is None:
+                # If MIME type can not be guessed, we use 'text' as default
+                mime_type = 'text/plain'
 
         # step (1/3): prepare
-        myfilelist = [{"mimeType": mime_type, "name": remote_name}]
-        if remote_category is not None:
-            myfilelist['categoryId': remote_category]
-        response = self.post("file/prepare.json", params={'files': myfilelist})
+        files = [{"mimeType": mime_type, "name": remote_name, 'categoryId': remote_category}]
+        response = self.post("file/prepare.json", params={'files': files})
+        if len(response['data']) != 1:
+            raise ValueError("Expected response['data'] with length 1, got length {len(response['data'])}.")
         myid = response['data'][0]['fileId']
         write_url = response['data'][0]['writeUrl']
 
@@ -117,7 +122,7 @@ class CashCtrlAPIClient:
             response = self.post("file/update.json", params=params)
             return id
 
-    def file_download(self, id: (int | str), file: (str | Path)):
+    def file_download(self, id: int | str, file: str | Path):
         """
         Download a file identified by a remote id and save it to a local path.
 
@@ -158,6 +163,8 @@ class CashCtrlAPIClient:
 
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_data(data.copy()))
+        df['id'] = df['id'].astype(int)
+        df['path'] = df['path'].astype(pd.StringDtype())
         if not include_system:
             df = df.loc[~df['isSystem'], :]
             # Remove first node (the system root) from paths
@@ -187,6 +194,8 @@ class CashCtrlAPIClient:
             to_delete = [node for node in remote_categories_df['path']
                         if not target_categories_df.str.startswith(node).any()]
             if to_delete:
+                # start deletion from leafs, progress towards root:
+                to_delete.sort(reverse=True)
                 delete_ids = [str(remote_categories.pop(node)) for node in to_delete]
                 self.post(f"{resource}/category/delete.json", params={'ids': ','.join(delete_ids)})
 
@@ -203,3 +212,104 @@ class CashCtrlAPIClient:
                         params['parentId'] = remote_categories[parent_path]
                     response = self.post(f"{resource}/category/create.json", params=params)
                     remote_categories[node_path] = response['insertId']
+
+    def mirror_directory(self, directory: str | Path,
+                        delete_files: bool = False,
+                        delete_categories: bool = False):
+        """
+        Recursively mirrors a local directory on the CashCtrl server.
+
+        Ensures that the remote file system reflects the state of the local
+        directory, and that local sub-folders are mapped to remote categories.
+        The method creates, updates, and optionally deletes files and
+        categories (folders) on the server to match the local structure.
+
+        Parameters:
+            directory (str | Path): Path of the local directory to mirror.
+            delete_files (bool, optional): If True, deletes remote files
+                without a corresponding local file. Also empties the recycle
+                bin to release references and allow for category deletion.
+            delete_categories (bool, optional): If True, deletes unused
+                categories (folders) on the server.
+        """
+        local_files = list_directory(directory, recursive=True, exclude_dirs=True)
+        local_files['remote_path'] = '/' + local_files['path']
+        local_files['remote_category'] = [str(Path(p).parent)
+                                        for p in local_files['remote_path']]
+        local_files['remote_category'] = local_files['remote_category'].astype(
+            pd.StringDtype())
+        remote_files = self.list_files()
+
+        if delete_files:
+            to_delete = (
+                remote_files['path'].duplicated(keep='first') |
+                ~remote_files['path'].isin(local_files['remote_path'])
+            )
+            if to_delete.any():
+                ids = ','.join(remote_files.loc[to_delete, 'id'].astype(str))
+                self.post("file/delete.json", params={'ids': ids, 'force': True})
+                remote_files = remote_files.loc[~to_delete,:]
+            # Empty recycle bin to release references before category deletion
+            self.post("file/empty_archive.json")
+
+        self.update_categories('file', categories=local_files['remote_category'],
+                            delete=delete_categories)
+        remote_categories = self.list_categories('file')
+        category_map = dict(zip(remote_categories['path'], remote_categories['id']))
+        category_map['/'] = None
+
+        if remote_files['path'].duplicated().any():
+            raise ValueError("Some remote files are duplicated. Either use "
+                            "mirror_files(..., delete_files=True) or manually "
+                            "remove duplicates.")
+        df = local_files.merge(
+            remote_files[['path', 'lastUpdated', 'id']].rename(
+                columns={'path': 'remote_path', 'lastUpdated': 'remote_modified_time'}),
+            on='remote_path', how='left')
+        local_file_is_newer = (df['mtime'] > df['remote_modified_time']).fillna(False)
+        to_update = df.loc[local_file_is_newer, :]
+        for local_file, remote_category, id in zip(to_update['path'],
+                                                to_update['remote_category'],
+                                                to_update['id']):
+            self.file_upload(Path(directory) / local_file,
+                            remote_category=category_map[remote_category], id=id)
+
+        to_upload = local_files.loc[~local_files['remote_path'].isin(remote_files['path']), :]
+        for local_file, remote_category in zip(to_upload['path'],
+                                            to_upload['remote_category']):
+            self.file_upload(Path(directory) / local_file,
+                            remote_category=category_map[remote_category])
+
+
+    def list_files(self):
+        """
+        List remote files with their attributes. Add the files' hierarchical
+        position in the category tree in Unix-like filepath format.
+
+        Returns:
+            pd.DataFrame: A DataFrame with columns 'name', 'path', 'categoryId',
+                'created', 'lastUpdated', and 'id'. Timestamps are localized to
+                'Europe/Berlin'.
+        """
+        files = pd.DataFrame(self.get("file/list.json")['data'])
+        if len(files) > 0:
+            files['categoryId'] = files['categoryId'].astype(pd.Int64Dtype())
+            categories = self.list_categories('file')[['path', 'id']].rename(
+                columns={'id': 'categoryId'})
+            df = files.merge(categories, on='categoryId', how='left')
+            df['path'] = df['path'].fillna('') + '/' + df['name']
+            # The CashCtrl API returns CET, rather than UTC time
+            df['created'] = pd.to_datetime(df['created']).dt.tz_localize(
+                'Europe/Berlin')
+            df['lastUpdated'] = pd.to_datetime(df['lastUpdated']).dt.tz_localize(
+                'Europe/Berlin')
+        else:
+            df = pd.DataFrame({
+                'name': pd.Series(dtype='string'),
+                'path': pd.Series(dtype='string'),
+                'categoryId': pd.Series(dtype='Int64'),
+                'created': pd.Series(dtype='datetime64[ns, Europe/Berlin]'),
+                'lastUpdated': pd.Series(dtype='datetime64[ns, Europe/Berlin]'),
+                'id': pd.Series(dtype='int')
+            })
+        return df.sort_values('path')
