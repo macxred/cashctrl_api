@@ -1,22 +1,30 @@
+"""
+Module for listing directory contents with attributes in a pandas DataFrame.
+"""
+
 from pathlib import Path
 import pandas as pd
 
-def list_directory(directory: str | Path, recursive: bool = False, exclude_dirs: bool = False,
+def list_directory(directory: str | Path,
+                   recursive: bool = False,
+                   exclude_dirs: bool = False,
                    include_hidden: bool = False) -> pd.DataFrame:
     """
-    Lists files and directories in a specified folder, with their attributes such as size,
-    modification time, etc.
+    Lists files and directories in a specified folder, with attributes such as
+    size and modification time.
 
-    Parameters:
+    Args:
         directory (str | Path): The directory to list.
-        recursive (bool): If True, list items recursively. If False, only list items in the specified directory. Default is False.
-        exclude_dirs (bool): If True, the listing only contains files, not directories. Default is False.
-        include_hidden (bool): If True, include hidden files and directories (those starting with a dot). Default is False.
+        recursive (bool): If True, lists items recursively. Defaults to False.
+        exclude_dirs (bool): If True, only files are listed, not directories.
+                             Defaults to False.
+        include_hidden (bool): If True, includes hidden files and directories
+                               (those starting with a dot). Defaults to False.
 
     Returns:
-        pd.DataFrame: A DataFrame where each row represents a file or directory, including attributes.
-                      Columns include 'path', the relative path from the given base directory,
-                      'ctime' (creation time) and 'mtime' (modification time), both in UTC, 'size', etc.
+        pd.DataFrame: A DataFrame where each row represents a file or
+                      directory, with columns including 'path', 'ctime',
+                      'mtime', and 'size'. 'ctime' and 'mtime' are in UTC.
     """
     directory_path = Path(directory).expanduser()
     if not directory_path.exists():
@@ -25,20 +33,25 @@ def list_directory(directory: str | Path, recursive: bool = False, exclude_dirs:
         raise FileNotFoundError(f"`directory` is not a directory: {directory}.")
 
     def is_hidden(path):
+        """ Determines if the given path should be considered hidden. """
         return any(part.startswith('.') for part in path.parts)
+
     glob_pattern = "**/*" if recursive else "*"
     paths = [entry for entry in directory_path.glob(glob_pattern)
-                if ((not exclude_dirs) or entry.is_file())
-                and (include_hidden or not is_hidden(entry))]
-    if len(paths) > 0:
+             if (not exclude_dirs or entry.is_file())
+             and (include_hidden or not is_hidden(entry))]
+
+    if paths:
         path_dicts = [
-            {**{'path': str(path.relative_to(directory_path))}, **_file_attributes_as_dict(path)}
-            for path in paths]
+            {**{'path': path.relative_to(directory_path).as_posix()},
+             **_file_attributes_as_dict(path)} for path in paths]
         df = pd.DataFrame(path_dicts)
-        df['ctime'] = pd.to_datetime(df['ctime_ns'], unit='ns').dt.tz_localize('UTC')
-        df['mtime'] = pd.to_datetime(df['mtime_ns'], unit='ns').dt.tz_localize('UTC')
+        df['ctime'] = (pd.to_datetime(df['ctime_ns'], unit='ns')
+                       .dt.tz_localize('UTC'))
+        df['mtime'] = (pd.to_datetime(df['mtime_ns'], unit='ns')
+                       .dt.tz_localize('UTC'))
     else:
-        # Return an empty DataFrame with specified columns
+        # Return an empty DataFrame with specified columns if no paths found
         df = pd.DataFrame({
             'path': pd.StringDtype(),
             'size': pd.Int64Dtype(),

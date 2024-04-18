@@ -1,10 +1,10 @@
 """
-Unit tests for directory mirroring with CashCtrlAPIClient.
+Unit tests for directory mirroring with CashCtrlClient.
 """
 
 import pytest
 from pathlib import Path
-from cashctrl_api import CashCtrlAPIClient, list_directory
+from cashctrl_api import CashCtrlClient, list_directory
 
 @pytest.fixture
 def mock_directory(tmp_path):
@@ -25,17 +25,17 @@ def local_files(base_dir: str | Path) -> set:
     files = list_directory(base_dir, recursive=True, exclude_dirs=True)
     return set('/' + Path(p).as_posix() for p in files['path'])
 
-def remote_content(cc_client: CashCtrlAPIClient, file_id: int) -> str:
+def remote_content(cc_client: CashCtrlClient, file_id: int) -> str:
     """Fetch and return the content of a remote file identified by its ID."""
     params = {'id': file_id}
-    response = cc_client._raw_request('GET', 'file/get', params=params)
+    response = cc_client.request('GET', 'file/get', params=params)
     return response.content.decode('utf-8')
 
 def test_directory_mirroring(mock_directory):
     """
     Test that the directory mirroring correctly syncs local files to remote.
     """
-    cc_client = CashCtrlAPIClient()
+    cc_client = CashCtrlClient()
 
     # Mirror directory and check file presence
     cc_client.mirror_directory(mock_directory, delete_files=True)
@@ -97,7 +97,7 @@ def test_mirror_empty_directory(tmp_path):
     """
     Ensure that mirroring an empty directory removes all remote files.
     """
-    cc_client = CashCtrlAPIClient()
+    cc_client = CashCtrlClient()
     cc_client.mirror_directory(tmp_path, delete_files=True)
     assert cc_client.list_files().empty, (
         "Expected no remote files after mirroring an empty directory")

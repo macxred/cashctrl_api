@@ -1,10 +1,13 @@
-import json
+"""
+Unit tests for basic requests with CashCtrlClient.
+"""
+
 import pytest
-from cashctrl_api import CashCtrlAPIClient
+from cashctrl_api import CashCtrlClient
 
 def test_person_list():
-    cc = CashCtrlAPIClient()
-    response = cc.get("person/list.json")
+    cc_client = CashCtrlClient()
+    response = cc_client.get("person/list.json")
 
 def test_person_flatten_dict():
     # create
@@ -19,23 +22,24 @@ def test_person_flatten_dict():
             }],
         "titleId": 2
     }
-    cc = CashCtrlAPIClient()
-    response = cc.post("person/create.json", data=contact)
+    cc_client = CashCtrlClient()
+    response = cc_client.post("person/create.json", data=contact)
     id = response["insertId"]
     # read
-    response = cc.get("person/read.json", params={'id': id})
+    response = cc_client.get("person/read.json", params={'id': id})
     # delete
-    response = cc.post("person/delete.json", params={'ids': id})
+    response = cc_client.post("person/delete.json", params={'ids': id})
 
 def test_exception_when_not_successful():
-    cc = CashCtrlAPIClient()
+    cc_client = CashCtrlClient()
 
     # Error message wit filed name (error['field'] is set)
     with pytest.raises(Exception) as e:
-        cc.post(f"file/category/create.json")
+        cc_client.post(f"file/category/create.json")
     assert str(e.value) == 'API call failed. name: This field cannot be empty.'
 
     # Error message without filed name (error['field']=None)
     with pytest.raises(Exception) as e:
-        cc.post("person/create.json")
-    assert str(e.value) == 'API call failed. Either first name, last name or company must be set.'
+        cc_client.post("person/create.json")
+    assert str(e.value) == ('API call failed. Either first name, '
+                            'last name or company must be set.')
