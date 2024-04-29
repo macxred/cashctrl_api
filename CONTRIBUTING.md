@@ -129,14 +129,14 @@ For instance, if the API returns an empty list in above example, the DataFrame
 `df` will have no columns, resulting in an exception when trying to access
 the non-existent `df['account']` column.
 
-To mitigate runtime errors, we are developing the `enforce_column_types()`
+To mitigate runtime errors, we provide the `enforce_dtypes()`
 function to ensure DataFrames maintain expected columns and types,
 even if the data source returns unexpected results:
 
 ```python
 df = pd.DataFrame(cc_client.get('journal/list.json')['data'])
 columns = {'date': 'datetime64', 'amount': 'float', 'account': 'str'}
-df = enforce_column_types(df, required=columns)
+df = enforce_dtypes(df, required=columns)
 df.loc[df['account'] == '1020', 'amount'].sum()
 ```
 

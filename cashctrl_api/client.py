@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List
 import pandas as pd
 from .list_directory import list_directory
+from .enforce_dtypes import enforce_dtypes
 
 class CashCtrlClient:
     """
@@ -18,6 +19,39 @@ class CashCtrlClient:
     See README on https://github.com/macxred/cashctrl_api for overview and
     usage examples.
     """
+    CATEGORY_COLUMNS = {
+            'id': 'int',
+            'name': 'string[python]',
+            'path': 'string[python]',
+            'text': 'string[python]',
+            'parentId': 'Int64',
+            'created': 'datetime64[ns, Europe/Berlin]',
+            'createdBy': 'string[python]',
+            'lastUpdated': 'datetime64[ns, Europe/Berlin]',
+            'lastUpdatedBy': 'string[python]',
+            'cls': 'string[python]',
+            'leaf': 'bool',
+            'disableAdd': 'bool',
+            'isSystem': 'bool',
+    }
+    FILE_COLUMNS = {
+            'id': 'int',
+            'name': 'string[python]',
+            'path': 'string[python]',
+            'description': 'string[python]',
+            'notes': 'string[python]',
+            'size': 'int',
+            'mimeType': 'string[python]',
+            'isAttached': 'bool',
+            'attachedCount': 'int',
+            'categoryId': 'Int64',
+            'categoryName': 'string[python]',
+            'created': 'datetime64[ns, Europe/Berlin]',
+            'createdBy': 'string[python]',
+            'lastUpdated': 'datetime64[ns, Europe/Berlin]',
+            'lastUpdatedBy': 'string[python]',
+            'dateArchived': 'datetime64[ns, Europe/Berlin]',
+    }
 
     def __init__(self,
                  organisation: str = os.getenv("CC_API_ORGANISATION"),
@@ -190,10 +224,9 @@ class CashCtrlClient:
                                              categories.
 
         Returns:
-            pd.DataFrame: DataFrame where each row represents a category.
-                          Column 'path' indicates the category's hierarchical
-                          position. Additional columns contain properties of
-                          each category.
+            pd.DataFrame: DataFrame with CashCtrlClient.CATEGORY_COLUMNS
+                          schema. Column 'path' indicates the category's
+                          hierarchical position.
         """
         def flatten_nodes(nodes, parent_path=''):
             """ Recursive function to flatten category hierarchy. """
@@ -211,8 +244,7 @@ class CashCtrlClient:
 
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
-        df['id'] = df['id'].astype(int)
-        df['path'] = df['path'].astype(pd.StringDtype())
+        df = enforce_dtypes(df, self.CATEGORY_COLUMNS)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
             # Remove first node (the system root) from paths
@@ -339,29 +371,16 @@ class CashCtrlClient:
         position in the category tree in Unix-like filepath format.
 
         Returns:
-            pd.DataFrame: A DataFrame with columns 'name', 'path',
-                'categoryId', 'created', 'lastUpdated', and 'id'.
+            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
         """
         files = pd.DataFrame(self.get("file/list.json")['data'])
-        if len(files) > 0:
-            files['categoryId'] = files['categoryId'].astype(pd.Int64Dtype())
-            categories = self.list_categories('file')[['path', 'id']].rename(
-                columns={'id': 'categoryId'})
-            df = files.merge(categories, on='categoryId', how='left')
+        columns_except_path = {key: value for key, value
+                               in self.FILE_COLUMNS.items() if key != 'path'}
+        df = enforce_dtypes(files, columns_except_path)
+        if len(df) > 0:
+            categories = self.list_categories('file')[['path', 'id']]
+            categories = categories.rename(columns={'id': 'categoryId'})
+            df = df.merge(categories, on='categoryId', how='left')
             df['path'] = df['path'].fillna('') + '/' + df['name']
-            # The CashCtrl API returns CET, rather than UTC time
-            df['created'] = pd.to_datetime(df['created']).dt.tz_localize(
-                'Europe/Berlin')
-            df['lastUpdated'] = (pd.to_datetime(df['lastUpdated'])
-                                 .dt.tz_localize('Europe/Berlin'))
-        else:
-            df = pd.DataFrame({
-                'name': pd.Series(dtype='string'),
-                'path': pd.Series(dtype='string'),
-                'categoryId': pd.Series(dtype='Int64'),
-                'created': pd.Series(dtype='datetime64[ns, Europe/Berlin]'),
-                'lastUpdated':
-                    pd.Series(dtype='datetime64[ns, Europe/Berlin]'),
-                'id': pd.Series(dtype='int')
-            })
+        df = enforce_dtypes(df, self.FILE_COLUMNS)
         return df.sort_values('path')

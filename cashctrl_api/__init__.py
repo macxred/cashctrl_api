@@ -6,8 +6,10 @@ as well as to upload and download files.
 
 Modules:
 - client: Contains the CashCtrlClient class that encapsulates API interactions.
-- list_directory: Utility function for listing local directory contents.
+- list_directory: Provides a utility function listing local directory contents.
+- enforce_dtypes: Provides a method to enforce a DataFrame column schema.
 """
 
 from .client import CashCtrlClient
 from .list_directory import list_directory
+from .enforce_dtypes import enforce_dtypes
