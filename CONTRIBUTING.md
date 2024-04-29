@@ -88,25 +88,25 @@ Follow these steps to set up your local development environment on Unix/Mac OS:
 
 ## Naming Patterns
 
-# Branch name
+### Branch name
 ```
 (feat|fix|docs|style|refactor|test|revert)/taskId_task-short-description
 Ex.: feat/1_add-commit-and-branch-name-styles-to-readme
 ```
 
-# Commit name
+### Commit name
 ```
 (feat|fix|docs|style|refactor|test|revert): update descriptions
 Ex.: bug: update readme
 ```
 
-# Commit description
+### Commit description
 ```
 tickets: taskId, taskId
 Ex.: tickets: 1, 2, 3
 ```
 
-# Pull-request name
+### Pull-request name
 ```
 (Feat|Fix|Docs|Style|Refactor|Test|Revert)/taskId description
 Ex.: Fix/15 unnecessary request removed
