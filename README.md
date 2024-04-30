@@ -27,7 +27,6 @@ Specialized methods manage categories and files:
 - `list_tax_rates()` lists remote files, their attributes, and Unix-style path
 - `list_accounts()` List remote accounts with their attributes.
 - `list_journal_entries()` List remote journal entries with their attributes.
-  representations of their hierarchical position in the category tree.
 - `upload_file()` uploads a file from the local file system to the server,
   and optionally replaces an existing remote file.
 - `download_file()` downloads a file from the server and saves it to the local
