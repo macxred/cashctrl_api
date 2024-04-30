@@ -11,6 +11,7 @@ from typing import List
 import pandas as pd
 from .list_directory import list_directory
 from .enforce_dtypes import enforce_dtypes
+from .constants import CATEGORY_COLUMNS, FILE_COLUMNS, TAX_COLUMNS, ACCOUNT_COLUMNS, JOURNAL_ENTRIES
 
 class CashCtrlClient:
     """
@@ -19,39 +20,6 @@ class CashCtrlClient:
     See README on https://github.com/macxred/cashctrl_api for overview and
     usage examples.
     """
-    CATEGORY_COLUMNS = {
-            'id': 'int',
-            'name': 'string[python]',
-            'path': 'string[python]',
-            'text': 'string[python]',
-            'parentId': 'Int64',
-            'created': 'datetime64[ns, Europe/Berlin]',
-            'createdBy': 'string[python]',
-            'lastUpdated': 'datetime64[ns, Europe/Berlin]',
-            'lastUpdatedBy': 'string[python]',
-            'cls': 'string[python]',
-            'leaf': 'bool',
-            'disableAdd': 'bool',
-            'isSystem': 'bool',
-    }
-    FILE_COLUMNS = {
-            'id': 'int',
-            'name': 'string[python]',
-            'path': 'string[python]',
-            'description': 'string[python]',
-            'notes': 'string[python]',
-            'size': 'int',
-            'mimeType': 'string[python]',
-            'isAttached': 'bool',
-            'attachedCount': 'int',
-            'categoryId': 'Int64',
-            'categoryName': 'string[python]',
-            'created': 'datetime64[ns, Europe/Berlin]',
-            'createdBy': 'string[python]',
-            'lastUpdated': 'datetime64[ns, Europe/Berlin]',
-            'lastUpdatedBy': 'string[python]',
-            'dateArchived': 'datetime64[ns, Europe/Berlin]',
-    }
 
     def __init__(self,
                  organisation: str = os.getenv("CC_API_ORGANISATION"),
@@ -244,7 +212,7 @@ class CashCtrlClient:
 
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
-        df = enforce_dtypes(df, self.CATEGORY_COLUMNS)
+        df = enforce_dtypes(df, CATEGORY_COLUMNS)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
             # Remove first node (the system root) from paths
@@ -375,12 +343,48 @@ class CashCtrlClient:
         """
         files = pd.DataFrame(self.get("file/list.json")['data'])
         columns_except_path = {key: value for key, value
-                               in self.FILE_COLUMNS.items() if key != 'path'}
+                               in FILE_COLUMNS.items() if key != 'path'}
         df = enforce_dtypes(files, columns_except_path)
         if len(df) > 0:
             categories = self.list_categories('file')[['path', 'id']]
             categories = categories.rename(columns={'id': 'categoryId'})
             df = df.merge(categories, on='categoryId', how='left')
             df['path'] = df['path'].fillna('') + '/' + df['name']
-        df = enforce_dtypes(df, self.FILE_COLUMNS)
+        df = enforce_dtypes(df, FILE_COLUMNS)
         return df.sort_values('path')
+    
+    def list_tax_rates(self) -> pd.DataFrame:
+        """
+        List remote tax rates with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
+        """
+        tax_rates = pd.DataFrame(self.get("tax/list.json")['data'])
+        df = enforce_dtypes(tax_rates, TAX_COLUMNS)
+
+        return df.sort_values('value')
+    
+    def list_accounts(self) -> pd.DataFrame:
+        """
+        List remote accounts with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
+        """
+        accounts = pd.DataFrame(self.get("account/list.json")['data'])
+        df = enforce_dtypes(accounts, ACCOUNT_COLUMNS)
+
+        return df.sort_values('number')
+    
+    def list_journal_entries(self) -> pd.DataFrame:
+        """
+        List remote journal entries with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
+        """
+        journal_entries = pd.DataFrame(self.get("journal/list.json")['data'])
+        df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
+
+        return df.sort_values('createdBy')
