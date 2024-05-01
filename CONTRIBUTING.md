@@ -102,14 +102,14 @@ Ex.: bug: update readme
 
 ### Commit description
 ```
-tickets: taskId, taskId
-Ex.: tickets: 1, 2, 3
+tickets: #taskId, #taskId
+Ex.: tickets: #1, #2, #3
 ```
 
 ### Pull-request name
 ```
-(Feat|Fix|Docs|Style|Refactor|Test|Revert)/taskId description
-Ex.: Fix/15 unnecessary request removed
+(Feat|Fix|Docs|Style|Refactor|Test|Revert): #taskId description
+Ex.: Fix: #15 unnecessary request removed
 ```
 
 ## Testing Strategy
@@ -122,7 +122,7 @@ executed  through GitHub Actions after each commit, during pull requests,
 and daily. The tests connect to a private CashCtrl test account with the API
 key stored as a GitHub secret.
 
-Before you try to run tests, execute the following command, to install pytest
+Execute the following command to install pytest:
 ```bash
 pip install pytest
 ```
