@@ -86,6 +86,32 @@ Follow these steps to set up your local development environment on Unix/Mac OS:
 </details>
 
 
+## Naming Patterns
+
+### Branch name
+```
+(feat|fix|docs|style|refactor|test|revert)/taskId_task-short-description
+Ex.: feat/1_add-commit-and-branch-name-styles-to-readme
+```
+
+### Commit name
+```
+(feat|fix|docs|style|refactor|test|revert): update descriptions
+Ex.: bug: update readme
+```
+
+### Commit description
+```
+tickets: #taskId, #taskId
+Ex.: tickets: #1, #2, #3
+```
+
+### Pull-request name
+```
+(Feat|Fix|Docs|Style|Refactor|Test|Revert): #taskId description
+Ex.: Fix: #15 unnecessary request removed
+```
+
 ## Testing Strategy
 
 We use pytest, we prefer its straightforward and readable syntax over the
@@ -95,6 +121,11 @@ Tests are located in the [tests](tests) directory and are automatically
 executed  through GitHub Actions after each commit, during pull requests,
 and daily. The tests connect to a private CashCtrl test account with the API
 key stored as a GitHub secret.
+
+Execute the following command to install pytest:
+```bash
+pip install pytest
+```
 
 For local testing, provide authentication details via environment variables:
 ```bash
