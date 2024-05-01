@@ -1,3 +1,7 @@
+"""
+This module contains constants used throughout the application.
+"""
+
 CATEGORY_COLUMNS = {
         'id': 'int',
         'name': 'string[python]',
@@ -10,7 +14,6 @@ CATEGORY_COLUMNS = {
         'lastUpdatedBy': 'string[python]',
         'cls': 'string[python]',
         'leaf': 'bool',
-        'disableAdd': 'bool',
         'isSystem': 'bool',
 }
 FILE_COLUMNS = {
@@ -53,6 +56,7 @@ TAX_COLUMNS = {
 }
 ACCOUNT_COLUMNS = {
         'id': 'int',
+        'path': 'string[python]',
         'created': 'datetime64[ns, Europe/Berlin]',
         'createdBy': 'string[python]',
         'lastUpdated': 'datetime64[ns, Europe/Berlin]',

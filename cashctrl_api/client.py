@@ -363,17 +363,27 @@ class CashCtrlClient:
         tax_rates = pd.DataFrame(self.get("tax/list.json")['data'])
         df = enforce_dtypes(tax_rates, TAX_COLUMNS)
 
-        return df.sort_values('value')
+        return df.sort_values('name')
     
     def list_accounts(self) -> pd.DataFrame:
         """
-        List remote accounts with their attributes.
+        List remote accounts with their attributes, and
+        Unix-style path representation of their hierarchical position in the
+        category tree.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
         """
         accounts = pd.DataFrame(self.get("account/list.json")['data'])
-        df = enforce_dtypes(accounts, ACCOUNT_COLUMNS)
+        columns_except_path = {key: value for key, value
+                               in ACCOUNT_COLUMNS.items() if key != 'path'}
+        df = enforce_dtypes(accounts, columns_except_path)
+        if len(df) > 0:
+            categories = self.list_categories('account')[['path', 'id']]
+            categories = categories.rename(columns={'id': 'categoryId'})
+            df = df.merge(categories, on='categoryId', how='left')
+            df['path'] = df['path'].fillna('') + '/' + df['name']
+        df = enforce_dtypes(df, ACCOUNT_COLUMNS)
 
         return df.sort_values('number')
     
@@ -385,6 +395,7 @@ class CashCtrlClient:
             pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
         """
         journal_entries = pd.DataFrame(self.get("journal/list.json")['data'])
+        print(self.get("journal/list.json")['data'])
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
 
-        return df.sort_values('createdBy')
+        return df.sort_values('created')
