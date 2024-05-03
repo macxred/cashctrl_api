@@ -398,4 +398,4 @@ class CashCtrlClient:
         print(self.get("journal/list.json")['data'])
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
 
-        return df.sort_values('created')
+        return df.sort_values('dateAdded')

@@ -17,16 +17,10 @@ def test_list_tax_rates_to_have_expected_columns():
     tax_rates = cc_client.list_tax_rates()
 
     assert isinstance(tax_rates, pd.DataFrame), "`tax_rates` is not a DataFrame."
-
-    # Check if all expected columns are in the DataFrame
-    assert set(constants.TAX_COLUMNS.keys()).issubset(
-        tax_rates.columns
-    ), "Some expected columns are missing."
-
-    # Check for unexpected columns in the DataFrame
-    unexpected_columns = set(tax_rates.columns) - set(constants.TAX_COLUMNS.keys())
-    assert not unexpected_columns, (
-        f"Unexpected columns found: {unexpected_columns}."
+    # Check if some expected columns are missing or Unexpected columns 
+    # found in the DataFrame
+    assert set(constants.TAX_COLUMNS.keys()) == set(tax_rates.columns), (
+        "Some expected columns are missing or unexpected columns found"
     )
 
     # Check that the data types of the columns are as expected
