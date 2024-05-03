@@ -17,8 +17,6 @@ def test_list_tax_rates_to_have_expected_columns():
     tax_rates = cc_client.list_tax_rates()
 
     assert isinstance(tax_rates, pd.DataFrame), "`tax_rates` is not a DataFrame."
-    # Check if some expected columns are missing or Unexpected columns 
-    # found in the DataFrame
     assert set(constants.TAX_COLUMNS.keys()) == set(tax_rates.columns), (
         "Some expected columns are missing or unexpected columns found"
     )
@@ -42,16 +40,8 @@ def test_list_accounts_to_have_expected_columns():
     accounts = cc_client.list_accounts()
 
     assert isinstance(accounts, pd.DataFrame), "`accounts` is not a DataFrame."
-
-    # Check if all expected columns are in the DataFrame
-    assert set(constants.ACCOUNT_COLUMNS.keys()).issubset(
-        accounts.columns
-    ), "Some expected columns are missing."
-
-    # Check for unexpected columns in the DataFrame
-    unexpected_columns = set(accounts.columns) - set(constants.ACCOUNT_COLUMNS.keys())
-    assert not unexpected_columns, (
-        f"Unexpected columns found: {unexpected_columns}."
+    assert set(constants.ACCOUNT_COLUMNS.keys()) == set(accounts.columns), (
+        "Some expected columns are missing or unexpected columns found"
     )
 
     # Check that the data types of the columns are as expected
@@ -73,16 +63,8 @@ def test_list_journal_entries_to_have_columns():
     journal_entries = cc_client.list_journal_entries()
 
     assert isinstance(journal_entries, pd.DataFrame), "`journal_entries` is not a DataFrame."
-
-    # Check if all expected columns are in the DataFrame
-    assert set(constants.JOURNAL_ENTRIES.keys()).issubset(
-        journal_entries.columns
-    ), "Some expected columns are missing."
-
-    # Check for unexpected columns in the DataFrame
-    unexpected_columns = set(journal_entries.columns) - set(constants.JOURNAL_ENTRIES.keys())
-    assert not unexpected_columns, (
-        f"Unexpected columns found: {unexpected_columns}."
+    assert set(constants.JOURNAL_ENTRIES.keys()) == set(journal_entries.columns), (
+        "Some expected columns are missing or unexpected columns found"
     )
 
     # Check that the data types of the columns are as expected
