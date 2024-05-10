@@ -68,7 +68,7 @@ ACCOUNT_COLUMNS = {
         'taxName': 'string[python]',
         'currencyId': 'string[python]',
         'currencyCode': 'string[python]',
-        'number': 'string[python]',
+        'number': 'Int64',
         'name': 'string[python]',
         'custom': 'string[python]',
         'notes': 'string[python]',
