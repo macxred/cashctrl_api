@@ -35,7 +35,7 @@ FILE_COLUMNS = {
         'dateArchived': 'datetime64[ns, Europe/Berlin]',
 }
 TAX_COLUMNS = {
-        'id': 'int',
+        'id': 'string[python]',
         'created': 'datetime64[ns, Europe/Berlin]',
         'createdBy': 'string[python]',
         'lastUpdated': 'datetime64[ns, Europe/Berlin]',
@@ -64,7 +64,7 @@ ACCOUNT_COLUMNS = {
         'categoryId': 'int',
         'categoryDisplay': 'string[python]',
         'accountClass': 'string[python]',
-        'taxId': 'datetime64[ns, Europe/Berlin]',
+        'taxId': 'string[python]',
         'taxName': 'string[python]',
         'currencyId': 'string[python]',
         'currencyCode': 'string[python]',
