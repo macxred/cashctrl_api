@@ -352,7 +352,7 @@ class CashCtrlClient:
             df['path'] = df['path'].fillna('') + '/' + df['name']
         df = enforce_dtypes(df, FILE_COLUMNS)
         return df.sort_values('path')
-    
+
     def list_tax_rates(self) -> pd.DataFrame:
         """
         List remote tax rates with their attributes.
@@ -364,7 +364,7 @@ class CashCtrlClient:
         df = enforce_dtypes(tax_rates, TAX_COLUMNS)
 
         return df.sort_values('name')
-    
+
     def list_accounts(self) -> pd.DataFrame:
         """
         List remote accounts with their attributes, and
@@ -382,11 +382,11 @@ class CashCtrlClient:
             categories = self.list_categories('account')[['path', 'id']]
             categories = categories.rename(columns={'id': 'categoryId'})
             df = df.merge(categories, on='categoryId', how='left')
-            df['path'] = df['path'].fillna('') + '/' + df['name']
+            df['path'] = df['path'].fillna('')
         df = enforce_dtypes(df, ACCOUNT_COLUMNS)
 
         return df.sort_values('number')
-    
+
     def list_journal_entries(self) -> pd.DataFrame:
         """
         List remote journal entries with their attributes.
