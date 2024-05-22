@@ -78,12 +78,12 @@ ACCOUNT_COLUMNS = {
         'costCenterIds': 'string[python]',
         'costCenterNumbers': 'string[python]',
         'openingAmount': 'Int64',
-        'endAmount': 'Int64',
+        'endAmount': 'string[python]',
         'targetMin': 'string[python]',
         'targetMax': 'string[python]',
         'targetDisplay': 'string[python]',
         'defaultCurrencyOpeningAmount': 'Int64',
-        'defaultCurrencyEndAmount': 'Int64',
+        'defaultCurrencyEndAmount': 'string[python]',
         'isInactive': 'bool'
 }
 JOURNAL_ENTRIES = {
@@ -98,7 +98,7 @@ JOURNAL_ENTRIES = {
         'creditName': 'string[python]',
         'associateId': 'Int64',
         'associateName': 'string[python]',
-        'taxId': 'Int64',
+        'taxId': 'string[python]',
         'taxName': 'string[python]',
         'orderId': 'Int64',
         'orderBookEntryId': 'Int64',
