@@ -395,7 +395,6 @@ class CashCtrlClient:
             pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
         """
         journal_entries = pd.DataFrame(self.get("journal/list.json")['data'])
-        print(self.get("journal/list.json")['data'])
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
 
         return df.sort_values('dateAdded')
