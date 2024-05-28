@@ -129,7 +129,7 @@ JOURNAL_ENTRIES = {
         'notifyPersonId': 'Int64',
         'notifyUserId': 'Int64',
         'notifyEmail': 'string[python]',
-        'attachmentCount': 'int',
+        'attachmentCount': 'Int64',
         'allocationCount': 'string[python]',
         'costCenterIds': 'Int64',
         'imported': 'string[python]',
