@@ -220,8 +220,8 @@ class CashCtrlClient:
 
         return df.sort_values('path')
 
-    def update_categories(self, resource: str, target: List[str],
-                        delete: bool = False):
+    def update_categories(self, resource: str, target: List[str] | dict,
+                          delete: bool = False):
         """
         Updates the server's category tree for a specified resource,
         synchronizing it with the provided category list.
@@ -236,15 +236,25 @@ class CashCtrlClient:
         categories = dict(zip(category_list['path'], category_list['id']))
 
         if delete:
-            target_df = pd.Series(pd.Series(target).unique())
-            to_delete = [node for node in category_list['path']
-                        if not target_df.str.startswith(node).any()]
+            if isinstance(target, list):
+                target_series = pd.Series(target)
+            else:
+                target_series = pd.Series(target).index
+            target_df = pd.Series(target_series.unique())
+            to_delete = [node for node in category_list['path']if not target_df.str.startswith(node).any()]
+
             if to_delete:
                 to_delete.sort(reverse=True) # Delete from leaf to root
                 delete_ids = [str(categories.pop(path)) for path in to_delete]
                 self.post(f"{resource}/category/delete.json",
                           params={'ids': ','.join(delete_ids)})
 
+        if resource == 'account' and isinstance(target, list):
+            raise ValueError('Accounts target should be a dict of groups and associated account numbers')
+        elif resource != 'account' and not isinstance(target, list):
+            raise ValueError('Target categories should be a list for this resource')
+
+        # TODO: In account case need to modify numbers if target differs from remote
         # Create missing categories
         missing_leaves = set(target).difference(categories).difference('/')
         for category in missing_leaves:
@@ -256,6 +266,8 @@ class CashCtrlClient:
                     params = {'name': nodes[i]}
                     if parent_path:
                         params['parentId'] = categories[parent_path]
+                    if isinstance(target, dict) and target[category]:
+                        params['number'] = target[category]
                     response = self.post(f"{resource}/category/create.json",
                                          params=params)
                     categories[node_path] = response['insertId']

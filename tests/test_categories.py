@@ -18,6 +18,14 @@ more_categories = [
     '/feeling/kind/of/warm',
 ]
 
+account_categories = {
+    '/Anlagevermögen/hello': 1000,
+    '/Anlagevermögen/world/how/are/you/?': 1010,
+    '/Anlagevermögen/feeling/kind/of/warm': 1020,
+    '/Anlagevermögen/are': 1020,
+    '/Anlagevermögen/you?': 1020,
+}
+
 def test_initial_category_creation():
     """Test that categories are correctly created initially."""
     cc_client = CashCtrlClient()
@@ -61,3 +69,31 @@ def test_invalid_path():
         cc_client.update_categories('file', target=invalid_categories[[0]])
     with pytest.raises(Exception):
         cc_client.update_categories('file', target=invalid_categories[[1]])
+
+def test_update_account_categories_with_list():
+    """Test that should get error while updating account categories with target as a list type"""
+    cc_client = CashCtrlClient()
+    with pytest.raises(ValueError):
+        cc_client.update_categories('account', target=categories)
+
+def test_update_file_categories_with_dict():
+    """Test that should get error while updating file categories with target as a dict type"""
+    cc_client = CashCtrlClient()
+    with pytest.raises(ValueError):
+        cc_client.update_categories('file', target=account_categories)
+
+def test_account_category_addition():
+    """Test that new categories for accounts are added and deleted correctly"""
+    cc_client = CashCtrlClient()
+    initial_categories = cc_client.list_categories('account')
+    initial_paths = initial_categories['path'].tolist()
+    initial_paths_dict = { key: 1000 for key in initial_paths }
+
+    cc_client.update_categories('account', target=account_categories)
+    remote_categories = cc_client.list_categories('account')
+    assert set(account_categories).issubset(remote_categories['path']), (
+        "Not all initial categories appear in remote categories")
+
+    cc_client.update_categories('account', target=initial_paths_dict, delete=True)
+    remote_categories = cc_client.list_categories('account')
+    pd.testing.assert_frame_equal(initial_categories, remote_categories)
