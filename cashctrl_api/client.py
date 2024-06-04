@@ -249,9 +249,9 @@ class CashCtrlClient:
                 self.post(f"{resource}/category/delete.json",
                           params={'ids': ','.join(delete_ids)})
 
-        if resource == 'account' and isinstance(target, list):
+        if resource == 'account' and not isinstance(target, dict):
             raise ValueError('Accounts target should be a dict of groups and associated account numbers')
-        elif resource != 'account' and not isinstance(target, list):
+        elif resource != 'account' and isinstance(target, dict):
             raise ValueError('Target categories should be a list for this resource')
 
         # TODO: In account case need to modify numbers if target differs from remote
