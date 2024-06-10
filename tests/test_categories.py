@@ -24,6 +24,7 @@ account_categories = {
     '/Anlagevermögen/feeling/kind/of/warm': 1020,
     '/Anlagevermögen/are': 1020,
     '/Anlagevermögen/you?': 1020,
+    '/Anlagevermögen/Beteiligungen': 6000,
 }
 
 def test_initial_category_creation():
@@ -82,18 +83,18 @@ def test_update_file_categories_with_dict():
     with pytest.raises(ValueError):
         cc_client.update_categories('file', target=account_categories)
 
-def test_account_category_addition():
-    """Test that new categories for accounts are added and deleted correctly"""
+def test_account_category_update():
+    """Test that new updates categories for accounts and then restores initial state"""
     cc_client = CashCtrlClient()
     initial_categories = cc_client.list_categories('account')
-    initial_paths = initial_categories['path'].tolist()
-    initial_paths_dict = { key: 1000 for key in initial_paths }
-
+    initial_paths = { row['path']: row['number'] for _, row in initial_categories.iterrows() }
     cc_client.update_categories('account', target=account_categories)
     remote_categories = cc_client.list_categories('account')
     assert set(account_categories).issubset(remote_categories['path']), (
-        "Not all initial categories appear in remote categories")
+        "Not all categories appear were updated")
 
-    cc_client.update_categories('account', target=initial_paths_dict, delete=True)
-    remote_categories = cc_client.list_categories('account')
-    pd.testing.assert_frame_equal(initial_categories, remote_categories)
+    cc_client.update_categories('account', target=initial_paths, delete=True)
+    updated = cc_client.list_categories('account')
+    updated_paths = { row['path']: row['number'] for _, row in updated.iterrows() }
+    assert initial_paths == updated_paths, (
+        "Initial categories were not restored")

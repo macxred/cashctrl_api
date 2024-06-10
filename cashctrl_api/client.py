@@ -203,7 +203,7 @@ class CashCtrlClient:
                                  f"got {type(nodes).__name__}.")
             rows = []
             for node in nodes:
-                path = f"{parent_path}/{node['text']}"
+                path = f"{parent_path}/{node['text'].replace("/", "\\/")}"
                 if ('data' in node) and (not node['data'] is None):
                     data = node.pop('data')
                     rows.extend(flatten_nodes(data, path))
@@ -212,7 +212,15 @@ class CashCtrlClient:
 
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
-        df = enforce_dtypes(df, CATEGORY_COLUMNS)
+
+        # Add number column for account categories
+        if resource == 'account':
+            accounts = pd.DataFrame(self.get("account/list.json")['data'])
+            accounts = accounts.groupby('categoryId', as_index=False).agg({'number': 'min'})
+            df.drop(columns=['number'], inplace=True)
+            df = pd.merge(df, accounts, how='left', left_on='id', right_on='categoryId')
+
+        df = enforce_dtypes(df, CATEGORY_COLUMNS, optional={'number': 'Int64'})
         if not include_system:
             df = df.loc[~df['isSystem'], :]
             # Remove first node (the system root) from paths
@@ -228,10 +236,15 @@ class CashCtrlClient:
 
         Args:
             resource (str): Resource type ('account', 'file', etc.).
-            target (List[str]): Target category paths in Unix-like format.
+            target (List[str] | dict): Target category paths in Unix-like format.
             delete (bool, optional): If True, deletes categories not present
                                      in the provided list. Defaults to False.
         """
+        if resource == 'account' and not isinstance(target, dict):
+            raise ValueError('Accounts target should be a dict of groups and associated account numbers')
+        elif resource != 'account' and isinstance(target, dict):
+            raise ValueError('Target categories should be a list for this resource')
+
         category_list = self.list_categories(resource)
         categories = dict(zip(category_list['path'], category_list['id']))
 
@@ -249,12 +262,21 @@ class CashCtrlClient:
                 self.post(f"{resource}/category/delete.json",
                           params={'ids': ','.join(delete_ids)})
 
-        if resource == 'account' and not isinstance(target, dict):
-            raise ValueError('Accounts target should be a dict of groups and associated account numbers')
-        elif resource != 'account' and isinstance(target, dict):
-            raise ValueError('Target categories should be a list for this resource')
+        # Update account category number if target differs from remote
+        if resource == 'account':
+            dict_df = pd.DataFrame(list(target.items()), columns=['path', 'new_number'])
+            merged = category_list.merge(dict_df, on='path', how='inner')
+            merged.dropna(subset=['number', 'new_number'], inplace=True)
+            update = merged[merged['number'] != merged['new_number']]
+            for row in update.to_dict('records'):
+                params = {
+                    'id': row['id'],
+                    'name': row['path'],
+                    'number': row['new_number'],
+                    'parentId': row['parentId']
+                }
+                self.post('account/category/update.json', params=params)
 
-        # TODO: In account case need to modify numbers if target differs from remote
         # Create missing categories
         missing_leaves = set(target).difference(categories).difference('/')
         for category in missing_leaves:
@@ -266,6 +288,8 @@ class CashCtrlClient:
                     params = {'name': nodes[i]}
                     if parent_path:
                         params['parentId'] = categories[parent_path]
+                    elif resource == 'account':
+                        params['parentId'] = categories.get(parent_path, 1)
                     if isinstance(target, dict) and target[category]:
                         params['number'] = target[category]
                     response = self.post(f"{resource}/category/create.json",
