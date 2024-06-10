@@ -91,7 +91,7 @@ def test_account_category_update():
     cc_client.update_categories('account', target=account_categories)
     remote_categories = cc_client.list_categories('account')
     assert set(account_categories).issubset(remote_categories['path']), (
-        "Not all categories appear were updated")
+        "Not all categories were updated")
 
     cc_client.update_categories('account', target=initial_paths, delete=True)
     updated = cc_client.list_categories('account')
