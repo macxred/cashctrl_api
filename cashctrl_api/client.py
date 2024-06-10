@@ -203,6 +203,11 @@ class CashCtrlClient:
                                  f"got {type(nodes).__name__}.")
             rows = []
             for node in nodes:
+                if node['text'].endswith("\\"):
+                    # A trailing backslash might be confused as escape
+                    # character for the following '/' path delimiter.
+                    raise ValueError("Categories ending with a backslash are "
+                                     f"not supported: '{node['text']}'.")
                 path = f"{parent_path}/{node['text'].replace("/", "\\/")}"
                 if ('data' in node) and (not node['data'] is None):
                     data = node.pop('data')
@@ -241,9 +246,9 @@ class CashCtrlClient:
                                      in the provided list. Defaults to False.
         """
         if resource == 'account' and not isinstance(target, dict):
-            raise ValueError('Accounts target should be a dict of groups and associated account numbers')
+            raise ValueError("Target should be a dict if resource == 'account'.")
         elif resource != 'account' and isinstance(target, dict):
-            raise ValueError('Target categories should be a list for this resource')
+            raise ValueError("Target should be a list for resources other than 'account'.")
 
         category_list = self.list_categories(resource)
         categories = dict(zip(category_list['path'], category_list['id']))
@@ -254,7 +259,8 @@ class CashCtrlClient:
             else:
                 target_series = pd.Series(target).index
             target_df = pd.Series(target_series.unique())
-            to_delete = [node for node in category_list['path']if not target_df.str.startswith(node).any()]
+            to_delete = [node for node in category_list['path']
+                         if not target_df.str.startswith(node).any()]
 
             if to_delete:
                 to_delete.sort(reverse=True) # Delete from leaf to root
