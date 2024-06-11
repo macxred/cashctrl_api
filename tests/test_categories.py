@@ -24,7 +24,7 @@ account_categories = {
     '/Anlagevermögen/feeling/kind/of/warm': 1020,
     '/Anlagevermögen/are': 1020,
     '/Anlagevermögen/you?': 1020,
-    '/Anlagevermögen/Beteiligungen': 6000,
+    '/Anlagevermögen/Finanzanlagen': 6000,
 }
 
 def test_initial_category_creation():
@@ -87,14 +87,20 @@ def test_account_category_update():
     """Test that new updates categories for accounts and then restores initial state"""
     cc_client = CashCtrlClient()
     initial_categories = cc_client.list_categories('account')
-    initial_paths = { row['path']: row['number'] for _, row in initial_categories.iterrows() }
+
     cc_client.update_categories('account', target=account_categories)
-    remote_categories = cc_client.list_categories('account')
-    assert set(account_categories).issubset(remote_categories['path']), (
+    remote = cc_client.list_categories('account')
+    remote = remote.drop(columns=[col for col in remote.columns if col not in ['path', 'number']])
+    target_df = pd.DataFrame(list(account_categories.items()), columns=['path', 'number'])
+    merged = pd.merge(target_df, remote, how='left', indicator=True)
+    assert (merged['_merge'] == 'both').all(), (
         "Not all categories were updated")
 
+    initial_paths = initial_categories.set_index('path')['number'].to_dict()
     cc_client.update_categories('account', target=initial_paths, delete=True)
     updated = cc_client.list_categories('account')
-    updated_paths = { row['path']: row['number'] for _, row in updated.iterrows() }
-    assert initial_paths == updated_paths, (
+    updated = updated.drop(columns=[col for col in updated.columns if col not in ['path', 'number']])
+    target_df = pd.DataFrame(list(initial_paths.items()), columns=['path', 'number'])
+    merged = pd.merge(target_df, updated, how='left', indicator=True)
+    assert (merged['_merge'] == 'both').all(), (
         "Initial categories were not restored")

@@ -7,7 +7,7 @@ import os
 from requests import request, put, Response, RequestException, HTTPError
 from mimetypes import guess_type
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 import pandas as pd
 from .list_directory import list_directory
 from .enforce_dtypes import enforce_dtypes
@@ -218,14 +218,10 @@ class CashCtrlClient:
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
 
-        # Add number column for account categories
+        columns = {**CATEGORY_COLUMNS}
         if resource == 'account':
-            accounts = pd.DataFrame(self.get("account/list.json")['data'])
-            accounts = accounts.groupby('categoryId', as_index=False).agg({'number': 'min'})
-            df.drop(columns=['number'], inplace=True)
-            df = pd.merge(df, accounts, how='left', left_on='id', right_on='categoryId')
-
-        df = enforce_dtypes(df, CATEGORY_COLUMNS, optional={'number': 'Int64'})
+            columns['number'] = 'Int64'
+        df = enforce_dtypes(df, columns)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
             # Remove first node (the system root) from paths
@@ -233,7 +229,7 @@ class CashCtrlClient:
 
         return df.sort_values('path')
 
-    def update_categories(self, resource: str, target: List[str] | dict,
+    def update_categories(self, resource: str, target: Dict[str, int] | List[str],
                           delete: bool = False):
         """
         Updates the server's category tree for a specified resource,
@@ -241,7 +237,11 @@ class CashCtrlClient:
 
         Args:
             resource (str): Resource type ('account', 'file', etc.).
-            target (List[str] | dict): Target category paths in Unix-like format.
+            target (Dict[str, int] | List[str]): Target category paths in Unix-like format.
+                                                 Type of [str, int] is suitable only for 'account' resource
+                                                 and represent key-value pairs of path and associated account number
+                                                 Type of List[str] is suitable for the rest of the resources and should
+                                                 contain just a list of paths in string format
             delete (bool, optional): If True, deletes categories not present
                                      in the provided list. Defaults to False.
         """
@@ -270,18 +270,15 @@ class CashCtrlClient:
 
         # Update account category number if target differs from remote
         if resource == 'account':
-            dict_df = pd.DataFrame(list(target.items()), columns=['path', 'new_number'])
-            merged = category_list.merge(dict_df, on='path', how='inner')
-            merged.dropna(subset=['number', 'new_number'], inplace=True)
-            update = merged[merged['number'] != merged['new_number']]
-            for row in update.to_dict('records'):
-                params = {
-                    'id': row['id'],
-                    'name': row['path'],
-                    'number': row['new_number'],
-                    'parentId': row['parentId']
-                }
-                self.post('account/category/update.json', params=params)
+            for row in category_list.to_dict('records'):
+                if row['path'] in target and row['number'] != target[row['path']]:
+                    params = {
+                        'id': row['id'],
+                        'name': row['text'],
+                        'number': target[row['path']],
+                        'parentId': row['parentId']
+                    }
+                    self.post('account/category/update.json', params=params)
 
         # Create missing categories
         missing_leaves = set(target).difference(categories).difference('/')
@@ -295,8 +292,11 @@ class CashCtrlClient:
                     if parent_path:
                         params['parentId'] = categories[parent_path]
                     elif resource == 'account':
-                        params['parentId'] = categories.get(parent_path, 1)
-                    if isinstance(target, dict) and target[category]:
+                        parentId = categories[parent_path]
+                        if not parentId:
+                            raise ValueError(f"Parent for '${parent_path}' path doesn`t exist")
+                        params['parentId'] = parentId
+                    if resource == 'account':
                         params['number'] = target[category]
                     response = self.post(f"{resource}/category/create.json",
                                          params=params)
