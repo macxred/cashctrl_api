@@ -90,17 +90,12 @@ def test_account_category_update():
 
     cc_client.update_categories('account', target=account_categories)
     remote = cc_client.list_categories('account')
-    remote = remote.drop(columns=[col for col in remote.columns if col not in ['path', 'number']])
-    target_df = pd.DataFrame(list(account_categories.items()), columns=['path', 'number'])
-    merged = pd.merge(target_df, remote, how='left', indicator=True)
-    assert (merged['_merge'] == 'both').all(), (
+    remote = remote.set_index('path')['number'].to_dict()
+    assert all(category in remote.items() for category in account_categories.items()), (
         "Not all categories were updated")
 
     initial_paths = initial_categories.set_index('path')['number'].to_dict()
     cc_client.update_categories('account', target=initial_paths, delete=True)
     updated = cc_client.list_categories('account')
-    updated = updated.drop(columns=[col for col in updated.columns if col not in ['path', 'number']])
-    target_df = pd.DataFrame(list(initial_paths.items()), columns=['path', 'number'])
-    merged = pd.merge(target_df, updated, how='left', indicator=True)
-    assert (merged['_merge'] == 'both').all(), (
-        "Initial categories were not restored")
+    updated = updated.set_index('path')['number'].to_dict()
+    assert updated == initial_paths, "Initial categories were not restored"

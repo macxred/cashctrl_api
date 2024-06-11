@@ -208,7 +208,7 @@ class CashCtrlClient:
                     # character for the following '/' path delimiter.
                     raise ValueError("Categories ending with a backslash are "
                                      f"not supported: '{node['text']}'.")
-                path = f"{parent_path}/{node['text'].replace("/", "\\/")}"
+                path = f"{parent_path}/{node['text'].replace("/", "*")}"
                 if ('data' in node) and (not node['data'] is None):
                     data = node.pop('data')
                     rows.extend(flatten_nodes(data, path))
@@ -218,7 +218,7 @@ class CashCtrlClient:
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
 
-        columns = {**CATEGORY_COLUMNS}
+        columns = CATEGORY_COLUMNS.copy()
         if resource == 'account':
             columns['number'] = 'Int64'
         df = enforce_dtypes(df, columns)
@@ -292,16 +292,12 @@ class CashCtrlClient:
                     if parent_path:
                         params['parentId'] = categories[parent_path]
                     elif resource == 'account':
-                        parentId = categories[parent_path]
-                        if not parentId:
-                            raise ValueError(f"Parent for '${parent_path}' path doesn`t exist")
-                        params['parentId'] = parentId
+                        raise ValueError(f"Cannot create new root nodes for account categories: '{node_path}'.")
                     if resource == 'account':
                         params['number'] = target[category]
                     response = self.post(f"{resource}/category/create.json",
                                          params=params)
                     categories[node_path] = response['insertId']
-
 
     def mirror_directory(self, directory: str | Path,
                         delete_files: bool = False,
