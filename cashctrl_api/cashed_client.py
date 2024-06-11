@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timedelta
 import pandas as pd
 from typing import Optional
+from cashctrl_api import CashCtrlClient
 
 class CachedCashCtrlClient(CashCtrlClient):
     """

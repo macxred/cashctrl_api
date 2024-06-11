@@ -11,6 +11,7 @@ Modules:
 """
 
 from .client import CashCtrlClient
+from .cashed_client import CachedCashCtrlClient
 from .list_directory import list_directory
 from .enforce_dtypes import enforce_dtypes
 from .import constants
