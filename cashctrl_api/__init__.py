@@ -6,6 +6,7 @@ as well as to upload and download files.
 
 Modules:
 - client: Contains the CashCtrlClient class that encapsulates API interactions.
+- cashed_client: Contains the CachedCashCtrlClient class that encapsulates cached API interactions.
 - list_directory: Provides a utility function listing local directory contents.
 - enforce_dtypes: Provides a method to enforce a DataFrame column schema.
 """

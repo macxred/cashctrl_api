@@ -29,8 +29,16 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._cache_timeout = cache_timeout
         self._accounts_cache: Optional[pd.DataFrame] = None
         self._accounts_cache_time: Optional[datetime] = None
-        self._tax_codes_cache: Optional[pd.DataFrame] = None
-        self._tax_codes_cache_time: Optional[datetime] = None
+        self._currencies_cache: Optional[pd.DataFrame] = None
+        self._currencies_cache_time: Optional[datetime] = None
+        self._account_categories_cache: Optional[pd.DataFrame] = None
+        self._account_categories_cache_time: Optional[datetime] = None
+        self._journal_entries_cache: Optional[pd.DataFrame] = None
+        self._journal_entries_cache_time: Optional[datetime] = None
+        self._tax_rates_cache: Optional[pd.DataFrame] = None
+        self._tax_rates_cache_time: Optional[datetime] = None
+        self._files_cache: Optional[pd.DataFrame] = None
+        self._files_cache_time: Optional[datetime] = None
 
     @property
     def cache_timeout(self) -> int:
@@ -64,17 +72,259 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._accounts_cache_time = datetime.now()
         return self._accounts_cache
 
-    def list_tax_codes(self) -> pd.DataFrame:
+    def list_journal_entries(self) -> pd.DataFrame:
         """
-        Lists remote tax codes with their attributes, and caches the result.
+        Lists remote journal_entries with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
+        """
+        if self._journal_entries_cache is None or self._is_expired(self._journal_entries_cache_time):
+            self._journal_entries_cache = super().list_journal_entries()
+            self._journal_entries_cache_time = datetime.now()
+        return self._journal_entries_cache
+
+    def list_currencies(self) -> pd.DataFrame:
+        """
+        Lists remote currencies with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with currencies
+        """
+        if self._currencies_cache is None or self._is_expired(self._currencies_cache_time):
+            self._currencies_cache = pd.DataFrame(self.get("currency/list.json")['data'])
+            self._currencies_cache_time = datetime.now()
+        return self._currencies_cache
+
+    def list_account_categories(self) -> pd.DataFrame:
+        """
+        Lists remote account categories with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS | {'number': 'Int64'} schema.
+        """
+        if self._account_categories_cache is None or self._is_expired(self._account_categories_cache_time):
+            self._account_categories_cache = self.list_categories('account')
+            self._account_categories_cache_time = datetime.now()
+        return self._account_categories_cache
+
+    def list_tax_rates(self) -> pd.DataFrame:
+        """
+        Lists remote tax rates with their attributes, and caches the result.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
         """
-        if self._tax_codes_cache is None or self._is_expired(self._tax_codes_cache_time):
-            self._tax_codes_cache = super().list_tax_rates()
-            self._tax_codes_cache_time = datetime.now()
-        return self._tax_codes_cache
+        if self._tax_rates_cache is None or self._is_expired(self._tax_rates_cache_time):
+            self._tax_rates_cache = super().list_tax_rates()
+            self._tax_rates_cache_time = datetime.now()
+        return self._tax_rates_cache
+
+    def list_files(self) -> pd.DataFrame:
+        """
+        List remote files with their attributes. Add the files' hierarchical
+        position in the category tree in Unix-like filepath format.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
+        """
+        if self._files_cache is None or self._is_expired(self._files_cache_time):
+            self._files_cache = super().list_files()
+            self._files_cache_time = datetime.now()
+        return self._files_cache
+
+    def account_from_id(self, id: int, allow_missing = False) -> int | None:
+        """
+        Retrieve the account number corresponding to a given id.
+
+        Args:
+            id (int): The id of the account.
+            allow_missing (boolean): The flag to allow missing account.
+
+        Returns:
+            int | none: The account number associated with the provided id
+                        or None is allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If no account is found for the given id or if multiple accounts are found.
+        """
+        df = self.list_accounts()
+        result = df.loc[df['id'] == id, 'number']
+        if result.empty and not allow_missing:
+            raise ValueError(f"No account found for id {id}")
+        elif result.empty and allow_missing:
+            return None
+        elif len(result) > 1:
+            raise ValueError(f"Multiple accounts found for id {id}")
+        else:
+            return result.item()
+
+    def account_to_id(self, account: int, allow_missing = False) -> int | None:
+        """
+        Retrieve the id corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): The flag to allow missing account.
+
+        Returns:
+            int | None: The id associated with the provided account number.
+                        or None is allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If no id is found for the given account number or if multiple ids are found.
+        """
+        df = self.list_accounts()
+        result = df.loc[df['number'] == account, 'id']
+        if result.empty and not allow_missing:
+            raise ValueError(f"No id found for account: {account}")
+        elif result.empty and allow_missing:
+            return None
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for account: {account}")
+        else:
+            return result.item()
+
+    def currency_from_id(self, id: int) -> str:
+        """
+        Retrieve the currency corresponding to a given id.
+
+        Args:
+            id (int): The id of the currency.
+
+        Returns:
+            str: The currency name associated with the provided id.
+
+        Raises:
+            ValueError: If no currency is found for the given id or if multiple currencies are found.
+        """
+        df = self.list_currencies()
+        result = df.loc[df['id'] == id, 'text']
+        if result.empty:
+            raise ValueError(f"No currency found for id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple currencies found for id: {id}")
+        else:
+            return result.item()
+
+    def currency_to_id(self, name: str) -> int:
+        """
+        Retrieve the id corresponding to a given currency name.
+
+        Args:
+            text (srt): The currency name.
+
+        Returns:
+            int: The id associated with the provided currency name.
+
+        Raises:
+            ValueError: If no id is found for the given currency name or if multiple ids are found.
+        """
+        df = self.list_currencies()
+        result = df.loc[df['text'] == name, 'id']
+        if result.empty:
+            raise ValueError(f"No id found for currency: {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for currency: {name}")
+        else:
+            return result.item()
+
+    def account_category_to_id(self, path: str) -> int:
+        """
+        Retrieve the id corresponding to a given category path.
+
+        Args:
+            path (str): The path of category.
+
+        Returns:
+            int: The id associated with the provided category path.
+
+        Raises:
+            ValueError: If no id isn`t found for the given category path or if multiple ids are found.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df['path'] == path, 'id']
+        if result.empty:
+            raise ValueError(f"No id found for account category path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for category path: {path}")
+        else:
+            return result.item()
+
+    def account_category_from_id(self, id: int) -> int:
+        """
+        Retrieve the path corresponding to a given account category id.
+
+        Args:
+            id (int): The id of category path.
+
+        Returns:
+            path: The path associated with the provided account category id.
+
+        Raises:
+            ValueError: If no path isn`t found for the given account category path or if multiple ids are found.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df['id'] == id, 'path']
+        if result.empty:
+            raise ValueError(f"No path found for account category id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple paths found for account category id: {id}")
+        else:
+            return result.item()
+
+    def tax_code_from_id(self, id: int, allow_missing = False) -> str | None:
+        """
+        Retrieve the tax code name corresponding to a given id.
+
+        Args:
+            id (int): The id of the tax code.
+            allow_missing (boolean): The flag to allow missing tax code.
+
+        Returns:
+            str | None: The tax code name associated with the provided id.
+                        or None is allow_missing is True and there is no such tax code.
+
+        Raises:
+            ValueError: If no tax code is found for the given id or if multiple tax codes are found.
+        """
+        df = self.list_tax_rates()
+        result = df.loc[df['id'] == id, 'name']
+        if result.empty and not allow_missing:
+            raise ValueError(f"No tax code found for id: {id}")
+        elif result.empty and allow_missing:
+            return None
+        elif len(result) > 1:
+            raise ValueError(f"Multiple tax codes found for id: {id}")
+        else:
+            return result.item()
+
+    def tax_code_to_id(self, name: str, allow_missing = False) -> int | None:
+        """
+        Retrieve the id corresponding to a given tax code name.
+
+        Args:
+            name (str): The tax code name.
+            allow_missing (boolean): The flag to allow missing tax code.
+
+        Returns:
+            int | None: The id associated with the provided tax code name.
+                        or None is allow_missing is True and there is no such tax code.
+
+        Raises:
+            ValueError: If no id is found for the given tax code name or if multiple ids are found.
+        """
+        df = self.list_tax_rates()
+        result = df.loc[df['name'] == name, 'id']
+        if result.empty and not allow_missing:
+            raise ValueError(f"No id found for tax code {name}")
+        elif result.empty and allow_missing:
+            return None
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for tax code {name}")
+        else:
+            return result.item()
+
 
     def invalidate_accounts_cache(self) -> None:
         """
@@ -83,100 +333,40 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._accounts_cache = None
         self._accounts_cache_time = None
 
-    def invalidate_tax_codes_cache(self) -> None:
+    def invalidate_tax_rates_cache(self) -> None:
         """
-        Invalidates the cached tax codes data.
+        Invalidates the cached tax rates data.
         """
-        self._tax_codes_cache = None
-        self._tax_codes_cache_time = None
+        self._tax_rates_cache = None
+        self._tax_rates_cache_time = None
 
-    def account_from_id(self, id: int) -> float:
+    def invalidate_currencies_cache(self) -> None:
         """
-        Retrieve the account number corresponding to a given id.
-
-        Args:
-            id (int): The id of the account.
-
-        Returns:
-            float: The account number associated with the provided id.
-
-        Raises:
-            ValueError: If no account is found for the given id or if multiple accounts are found.
+        Invalidates the cached currencies data.
         """
-        df = self.list_accounts()
-        result = df.loc[df['id'] == id, 'account']
-        if result.empty:
-            raise ValueError(f"No account found for id {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple accounts found for id {id}")
-        else:
-            return result.item()
+        self._currencies_cache = None
+        self._currencies_cache_time = None
 
-    def account_to_id(self, account: float) -> int:
+    def invalidate_account_categories_cache(self) -> None:
         """
-        Retrieve the id corresponding to a given account number.
-
-        Args:
-            account (float): The account number.
-
-        Returns:
-            int: The id associated with the provided account number.
-
-        Raises:
-            ValueError: If no id is found for the given account number or if multiple ids are found.
+        Invalidates the cached account categories data.
         """
-        df = self.list_accounts()
-        result = df.loc[df['account'] == account, 'id']
-        if result.empty:
-            raise ValueError(f"No id found for account {account}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple ids found for account {account}")
-        else:
-            return result.item()
+        self._account_categories_cache = None
+        self._account_categories_cache_time = None
 
-    def tax_code_from_id(self, id: int) -> str:
+    def invalidate_journal_entries_cache(self) -> None:
         """
-        Retrieve the tax code name corresponding to a given id.
-
-        Args:
-            id (int): The id of the tax code.
-
-        Returns:
-            str: The tax code name associated with the provided id.
-
-        Raises:
-            ValueError: If no tax code is found for the given id or if multiple tax codes are found.
+        Invalidates the cached journal entries data.
         """
-        df = self.list_tax_codes()
-        result = df.loc[df['id'] == id, 'name']
-        if result.empty:
-            raise ValueError(f"No tax code found for id {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple tax codes found for id {id}")
-        else:
-            return result.item()
+        self._journal_entries_cache = None
+        self._journal_entries_cache_time = None
 
-    def tax_code_to_id(self, name: str) -> int:
+    def invalidate_files_cache(self) -> None:
         """
-        Retrieve the id corresponding to a given tax code name.
-
-        Args:
-            name (str): The tax code name.
-
-        Returns:
-            int: The id associated with the provided tax code name.
-
-        Raises:
-            ValueError: If no id is found for the given tax code name or if multiple ids are found.
+        Invalidates the cached files data.
         """
-        df = self.list_tax_codes()
-        result = df.loc[df['name'] == name, 'id']
-        if result.empty:
-            raise ValueError(f"No id found for tax code {name}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple ids found for tax code {name}")
-        else:
-            return result.item()
+        self._files_cache = None
+        self._files_cache_time = None
 
     def _is_expired(self, cache_time: Optional[datetime]) -> bool:
         """
