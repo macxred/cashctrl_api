@@ -83,6 +83,12 @@ def test_update_file_categories_with_dict():
     with pytest.raises(ValueError):
         cc_client.update_categories('file', target=account_categories)
 
+def test_update_file_categories_raises_error_when_creating_account_root_node():
+    """Test that attempting to create a new root node in account categories raises an error"""
+    cc_client = CashCtrlClient()
+    with pytest.raises(ValueError, match="Cannot create new root node"):
+        cc_client.update_categories('account', target={"/new_root_node": 42})
+
 def test_account_category_update():
     """Test update_categories for accounts and then restores initial state"""
     cc_client = CashCtrlClient()
