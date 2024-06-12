@@ -288,7 +288,7 @@ class CashCtrlClient:
                 node_path = '/'.join(nodes[:i + 1])
                 parent_path = '/'.join(nodes[:i])
                 if node_path not in categories:
-                    params = {'name': nodes[i]}
+                    params = {'name': nodes[i].replace("*", "/")}
                     if parent_path:
                         params['parentId'] = categories[parent_path]
                     elif resource == 'account':

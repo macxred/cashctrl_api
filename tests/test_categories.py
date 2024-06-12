@@ -18,6 +18,7 @@ more_categories = [
     '/feeling/kind/of/warm',
 ]
 
+asterisk_path = '/Anlagevermögen/bla * blaaaa'
 account_categories = {
     '/Anlagevermögen/hello': 1000,
     '/Anlagevermögen/world/how/are/you/?': 1010,
@@ -25,6 +26,7 @@ account_categories = {
     '/Anlagevermögen/are': 1020,
     '/Anlagevermögen/you?': 1020,
     '/Anlagevermögen/Finanzanlagen': 6000,
+    asterisk_path: 6000,
 }
 
 def test_initial_category_creation():
@@ -90,6 +92,10 @@ def test_account_category_update():
 
     cc_client.update_categories('account', target=account_categories)
     remote = cc_client.list_categories('account')
+    asterisk_node = remote[remote['path'] == asterisk_path]
+    assert asterisk_node['text'].iat[0] == 'bla / blaaaa', (
+        'Asterisk should be represented as slash symbol in cashCtrl')
+
     remote = remote.set_index('path')['number'].to_dict()
     assert all(category in remote.items() for category in account_categories.items()), (
         "Not all categories were updated")
