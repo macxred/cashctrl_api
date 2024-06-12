@@ -7,7 +7,7 @@ import os
 from requests import request, put, Response, RequestException, HTTPError
 from mimetypes import guess_type
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 import pandas as pd
 from .list_directory import list_directory
 from .enforce_dtypes import enforce_dtypes
@@ -185,6 +185,10 @@ class CashCtrlClient:
         into a DataFrame. Includes a 'path' column representing each category's
         hierarchical position in Unix-like file path format.
 
+        Slashes ('/') in category names are replaced with backslashes ('\\')
+        to ensure the slash character is reserved for separating hierarchy
+        levels in path notation.
+
         Args:
             resource (str): Resource type ('account', 'file', etc.),
                             for which to fetch the category tree.
@@ -203,7 +207,7 @@ class CashCtrlClient:
                                  f"got {type(nodes).__name__}.")
             rows = []
             for node in nodes:
-                path = f"{parent_path}/{node['text']}"
+                path = f"{parent_path}/{node['text'].replace('/', '\\')}"
                 if ('data' in node) and (not node['data'] is None):
                     data = node.pop('data')
                     rows.extend(flatten_nodes(data, path))
@@ -212,38 +216,73 @@ class CashCtrlClient:
 
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
-        df = enforce_dtypes(df, CATEGORY_COLUMNS)
+
+        if resource == 'account':
+            columns = CATEGORY_COLUMNS | {'number': 'Int64'}
+        else:
+            columns = CATEGORY_COLUMNS
+        df = enforce_dtypes(df, columns)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
-            # Remove first node (the system root) from paths
-            df['path'] = df['path'].str.replace('^/+[^/]+', '', regex=True)
+            if resource == 'file':
+                # Remove first node (the system root) from paths
+                df['path'] = df['path'].str.replace('^/+[^/]+', '', regex=True)
 
         return df.sort_values('path')
 
-    def update_categories(self, resource: str, target: List[str],
-                        delete: bool = False):
+    def update_categories(self, resource: str, target: Dict[str, int] | List[str],
+                          delete: bool = False):
         """
         Updates the server's category tree for a specified resource,
         synchronizing it with the provided category list.
 
+        Backslashes ('\\') in category names are converted to slashes ('/').
+        This allows slashes in category names while reserving the slash
+        character as separator for hierarchy levels in path notation.
+
         Args:
             resource (str): Resource type ('account', 'file', etc.).
-            target (List[str]): Target category paths in Unix-like format.
+            target (Dict[str, int] | List[str]): Target category paths in Unix-like format.
+                                                 Type of [str, int] is suitable only for 'account' resource
+                                                 and represent key-value pairs of path and associated account number
+                                                 Type of List[str] is suitable for the rest of the resources and should
+                                                 contain just a list of paths in string format
             delete (bool, optional): If True, deletes categories not present
                                      in the provided list. Defaults to False.
         """
-        category_list = self.list_categories(resource)
+        if resource == 'account' and not isinstance(target, dict):
+            raise ValueError("Target should be a dict if resource == 'account'.")
+        elif resource != 'account' and isinstance(target, dict):
+            raise ValueError("Target should be a list for resources other than 'account'.")
+
+        category_list = self.list_categories(resource, include_system=True)
         categories = dict(zip(category_list['path'], category_list['id']))
 
         if delete:
-            target_df = pd.Series(pd.Series(target).unique())
+            if resource == 'account':
+                target_series = pd.Series(target.keys())
+            else:
+                target_series = pd.Series(target).unique()
             to_delete = [node for node in category_list['path']
-                        if not target_df.str.startswith(node).any()]
+                         if not target_series.str.startswith(node).any()]
+
             if to_delete:
                 to_delete.sort(reverse=True) # Delete from leaf to root
                 delete_ids = [str(categories.pop(path)) for path in to_delete]
                 self.post(f"{resource}/category/delete.json",
                           params={'ids': ','.join(delete_ids)})
+
+        # Update account category number if target differs from remote
+        if resource == 'account':
+            for row in category_list.to_dict('records'):
+                if row['path'] in target and row['number'] != target[row['path']]:
+                    params = {
+                        'id': row['id'],
+                        'name': row['text'],
+                        'number': target[row['path']],
+                        'parentId': row['parentId']
+                    }
+                    self.post('account/category/update.json', params=params)
 
         # Create missing categories
         missing_leaves = set(target).difference(categories).difference('/')
@@ -253,13 +292,16 @@ class CashCtrlClient:
                 node_path = '/'.join(nodes[:i + 1])
                 parent_path = '/'.join(nodes[:i])
                 if node_path not in categories:
-                    params = {'name': nodes[i]}
+                    params = {'name': nodes[i].replace('\\', '/')}
                     if parent_path:
                         params['parentId'] = categories[parent_path]
+                    elif resource == 'account':
+                        raise ValueError(f"Cannot create new root nodes for account categories: '{node_path}'.")
+                    if resource == 'account':
+                        params['number'] = target[category]
                     response = self.post(f"{resource}/category/create.json",
                                          params=params)
                     categories[node_path] = response['insertId']
-
 
     def mirror_directory(self, directory: str | Path,
                         delete_files: bool = False,
