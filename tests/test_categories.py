@@ -19,12 +19,12 @@ more_categories = [
 ]
 
 account_categories = {
-    '/Anlagevermögen/hello': 1000,
-    '/Anlagevermögen/world/how/are/you/?': 1010,
-    '/Anlagevermögen/feeling/kind/of/warm': 1020,
-    '/Anlagevermögen/are': 1020,
-    '/Anlagevermögen/you?': 1020,
-    '/Anlagevermögen/Finanzanlagen': 6000,
+    '/Assets/Anlagevermögen/hello': 1000,
+    '/Assets/Anlagevermögen/world/how/are/you/?': 1010,
+    '/Assets/Anlagevermögen/feeling/kind/of/warm': 1020,
+    '/Assets/Anlagevermögen/are': 1020,
+    '/Assets/Anlagevermögen/you?': 1020,
+    '/Assets/Anlagevermögen/Finanzanlagen': 6000,
 }
 
 def test_initial_category_creation():
@@ -98,7 +98,7 @@ def test_account_category_update():
         "Not all categories were updated")
 
     # Check that backslash in node names is converted to forward slash
-    slash_path = '/Anlagevermögen/bla \\ blaaaa'
+    slash_path = '/Assets/Anlagevermögen/bla \\ blaaaa'
     assert slash_path not in list(remote['path']), 'Slash_path already exists on remote.'
     cc_client.update_categories('account', target={slash_path: 6000})
     remote = cc_client.list_categories('account')

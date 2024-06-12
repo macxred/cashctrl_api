@@ -224,8 +224,9 @@ class CashCtrlClient:
         df = enforce_dtypes(df, columns)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
-            # Remove first node (the system root) from paths
-            df['path'] = df['path'].str.replace('^/+[^/]+', '', regex=True)
+            if resource == 'file':
+                # Remove first node (the system root) from paths
+                df['path'] = df['path'].str.replace('^/+[^/]+', '', regex=True)
 
         return df.sort_values('path')
 
@@ -254,7 +255,7 @@ class CashCtrlClient:
         elif resource != 'account' and isinstance(target, dict):
             raise ValueError("Target should be a list for resources other than 'account'.")
 
-        category_list = self.list_categories(resource)
+        category_list = self.list_categories(resource, include_system=True)
         categories = dict(zip(category_list['path'], category_list['id']))
 
         if delete:
