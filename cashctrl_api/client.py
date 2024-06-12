@@ -185,6 +185,10 @@ class CashCtrlClient:
         into a DataFrame. Includes a 'path' column representing each category's
         hierarchical position in Unix-like file path format.
 
+        Slashes ('/') in category names are replaced with backslashes ('\\')
+        to ensure the slash character is reserved for separating hierarchy
+        levels in path notation.
+
         Args:
             resource (str): Resource type ('account', 'file', etc.),
                             for which to fetch the category tree.
@@ -203,12 +207,7 @@ class CashCtrlClient:
                                  f"got {type(nodes).__name__}.")
             rows = []
             for node in nodes:
-                if node['text'].endswith("\\"):
-                    # A trailing backslash might be confused as escape
-                    # character for the following '/' path delimiter.
-                    raise ValueError("Categories ending with a backslash are "
-                                     f"not supported: '{node['text']}'.")
-                path = f"{parent_path}/{node['text'].replace("/", "*")}"
+                path = f"{parent_path}/{node['text'].replace('/', '\\')}"
                 if ('data' in node) and (not node['data'] is None):
                     data = node.pop('data')
                     rows.extend(flatten_nodes(data, path))
@@ -218,9 +217,10 @@ class CashCtrlClient:
         data = self.get(f"{resource}/category/tree.json")['data']
         df = pd.DataFrame(flatten_nodes(data.copy()))
 
-        columns = CATEGORY_COLUMNS.copy()
         if resource == 'account':
-            columns['number'] = 'Int64'
+            columns = CATEGORY_COLUMNS | {'number': 'Int64'}
+        else:
+            columns = CATEGORY_COLUMNS
         df = enforce_dtypes(df, columns)
         if not include_system:
             df = df.loc[~df['isSystem'], :]
@@ -234,6 +234,10 @@ class CashCtrlClient:
         """
         Updates the server's category tree for a specified resource,
         synchronizing it with the provided category list.
+
+        Backslashes ('\\') in category names are converted to slashes ('/').
+        This allows slashes in category names while reserving the slash
+        character as separator for hierarchy levels in path notation.
 
         Args:
             resource (str): Resource type ('account', 'file', etc.).
@@ -254,13 +258,12 @@ class CashCtrlClient:
         categories = dict(zip(category_list['path'], category_list['id']))
 
         if delete:
-            if isinstance(target, list):
-                target_series = pd.Series(target)
+            if resource == 'account':
+                target_series = pd.Series(target.keys())
             else:
-                target_series = pd.Series(target).index
-            target_df = pd.Series(target_series.unique())
+                target_series = pd.Series(target).unique()
             to_delete = [node for node in category_list['path']
-                         if not target_df.str.startswith(node).any()]
+                         if not target_series.str.startswith(node).any()]
 
             if to_delete:
                 to_delete.sort(reverse=True) # Delete from leaf to root
@@ -288,7 +291,7 @@ class CashCtrlClient:
                 node_path = '/'.join(nodes[:i + 1])
                 parent_path = '/'.join(nodes[:i])
                 if node_path not in categories:
-                    params = {'name': nodes[i].replace("*", "/")}
+                    params = {'name': nodes[i].replace('\\', '/')}
                     if parent_path:
                         params['parentId'] = categories[parent_path]
                     elif resource == 'account':
