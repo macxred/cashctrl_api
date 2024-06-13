@@ -28,18 +28,18 @@ class CachedCashCtrlClient(CashCtrlClient):
         """
         super().__init__(*args, **kwargs)
         self._cache_timeout = cache_timeout
-        self._accounts_cache: Optional[pd.DataFrame] = None
-        self._accounts_cache_time: Optional[datetime] = None
-        self._currencies_cache: Optional[pd.DataFrame] = None
-        self._currencies_cache_time: Optional[datetime] = None
-        self._account_categories_cache: Optional[pd.DataFrame] = None
-        self._account_categories_cache_time: Optional[datetime] = None
-        self._journal_cache: Optional[pd.DataFrame] = None
-        self._journal_cache_time: Optional[datetime] = None
-        self._tax_rates_cache: Optional[pd.DataFrame] = None
-        self._tax_rates_cache_time: Optional[datetime] = None
-        self._files_cache: Optional[pd.DataFrame] = None
-        self._files_cache_time: Optional[datetime] = None
+        self._accounts_cache: pd.DataFrame | None = None
+        self._accounts_cache_time: datetime | None = None
+        self._currencies_cache: pd.DataFrame | None = None
+        self._currencies_cache_time: datetime | None = None
+        self._account_categories_cache: pd.DataFrame | None = None
+        self._account_categories_cache_time: datetime | None = None
+        self._journal_cache: pd.DataFrame | None = None
+        self._journal_cache_time: datetime | None = None
+        self._tax_rates_cache: pd.DataFrame | None = None
+        self._tax_rates_cache_time: datetime | None = None
+        self._files_cache: pd.DataFrame | None = None
+        self._files_cache_time: datetime | None = None
 
     @property
     def cache_timeout(self) -> int:
@@ -381,12 +381,12 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._files_cache = None
         self._files_cache_time = None
 
-    def _is_expired(self, cache_time: Optional[datetime]) -> bool:
+    def _is_expired(self, cache_time: datetime | None) -> bool:
         """
         Checks if the cache has expired based on the cache timeout.
 
         Args:
-            cache_time (Optional[datetime]): The timestamp when the cache was last updated.
+            cache_time (datetime | None): The timestamp when the cache was last updated.
 
         Returns:
             bool: True if the cache is expired or cache_time is None, False otherwise.

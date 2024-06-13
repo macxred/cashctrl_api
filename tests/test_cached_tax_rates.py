@@ -32,6 +32,9 @@ def test_tax_code_from_id_invalid_id_raises_error(cc_client):
     with pytest.raises(ValueError, match='No tax code found for id'):
         cc_client.tax_code_from_id(99999999)
 
+def test_tax_code_from_id_invalid_id_returns_none_with_allowed_missing(cc_client):
+    assert cc_client.tax_code_from_id(99999999, allow_missing=True) == None
+
 def test_tax_code_to_id(cc_client, tax_rates):
     assert cc_client.tax_code_to_id(tax_rates['name'].iat[1]) == tax_rates['id'].iat[1], (
         'Cached tax code id doesn`t correspond actual id'
@@ -40,6 +43,9 @@ def test_tax_code_to_id(cc_client, tax_rates):
 def test_tax_code_to_id_with_invalid_tax_code_raises_error(cc_client):
     with pytest.raises(ValueError, match='No id found for tax code'):
         cc_client.tax_code_to_id(99999999)
+
+def test_tax_code_to_id_with_invalid_tax_code_returns_none_with_allowed_missing(cc_client):
+    assert cc_client.tax_code_to_id(99999999,  allow_missing=True) == None
 
 def test_tax_rates_cache_timeout(cc_client):
     cc_client = CachedCashCtrlClient(cache_timeout=1)

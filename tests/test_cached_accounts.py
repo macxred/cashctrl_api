@@ -32,6 +32,9 @@ def test_account_from_id_invalid_id_raises_error(cc_client):
     with pytest.raises(ValueError, match='No account found for id'):
         cc_client.account_from_id(99999999)
 
+def test_account_from_id_invalid_id_returns_none_with_allowed_missing(cc_client):
+    assert cc_client.account_from_id(99999999, allow_missing=True) == None
+
 def test_account_to_id(cc_client, accounts):
     assert cc_client.account_to_id(accounts['number'].iat[1]) == accounts['id'].iat[1], (
         'Cached account id doesn`t correspond actual id'
@@ -40,6 +43,9 @@ def test_account_to_id(cc_client, accounts):
 def test_account_to_id_with_invalid_account_number_raises_error(cc_client):
     with pytest.raises(ValueError, match='No id found for account'):
         cc_client.account_to_id(99999999)
+
+def test_account_to_id_with_invalid_account_number_returns_none_with_allowed_missing(cc_client):
+    assert cc_client.account_to_id(99999999, allow_missing=True) == None
 
 def test_account_cache_timeout(cc_client):
     cc_client = CachedCashCtrlClient(cache_timeout=1)
