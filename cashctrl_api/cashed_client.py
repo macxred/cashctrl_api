@@ -135,6 +135,46 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._files_cache_time = datetime.now()
         return self._files_cache
 
+    def file_id_to_path(self, id: int, allow_missing: bool = False) -> str | None:
+        """
+        Retrieve the file path corresponding to a given id.
+
+        Returns:
+            str | none: The file path associated with the provided id
+                        or None is allow_missing is True and there is no such file path.
+        """
+        df = self.list_files()
+        result = df.loc[df['id'] == id, 'path']
+        if result.empty:
+            if  allow_missing:
+                return None
+            else:
+                raise ValueError(f"No path found for id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple paths found for id: {id}")
+        else:
+            return result.item()
+
+    def file_path_to_id(self, path: str, allow_missing: bool = False) -> int | None:
+        """
+        Retrieve the file id corresponding to a given file path.
+
+        Returns:
+            int | none: The id associated with the file path
+                        or None is allow_missing is True and there is no such file id.
+        """
+        df = self.list_files()
+        result = df.loc[df['path'] == path, 'id']
+        if result.empty:
+            if  allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple id found for path: {path}")
+        else:
+            return result.item()
+
     def account_from_id(self, id: int, allow_missing = False) -> int | None:
         """
         Retrieve the account number corresponding to a given id.
