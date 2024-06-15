@@ -8,17 +8,13 @@ import pandas as pd
 from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
 
 @pytest.fixture(scope="module")
-def cc_client():
-    return CachedCashCtrlClient()
+def tmp_path_for_module(tmp_path_factory):
+    return tmp_path_factory.mktemp("temp")
 
 @pytest.fixture(scope="module")
-def files():
-    cc_client = CachedCashCtrlClient()
-    return CashCtrlClient.list_files(cc_client)
-
-@pytest.fixture
-def mock_directory(tmp_path):
+def mock_directory(tmp_path_for_module):
     """Create a temporary directory, populate with files and folders."""
+    tmp_path = tmp_path_for_module
     (tmp_path / 'file1.txt').write_text("This is a text file.")
     (tmp_path / 'file2.log').write_text("Log content here.")
     subdir = tmp_path / 'subdir'
@@ -30,6 +26,25 @@ def mock_directory(tmp_path):
     (nested_subdir / 'file5.log').write_text("Another nested directory file.")
     return tmp_path
 
+@pytest.fixture(scope="module")
+def cc_client(mock_directory):
+    """Create a CachedCashCtrlClient, populate with files and folders."""
+    cc_client = CachedCashCtrlClient()
+    cc_client.mirror_directory(mock_directory, delete_files=True)
+
+    # We create a fresh instance with empty cache, because the cache is
+    # populated when mirroring a directory
+    cc_client = CachedCashCtrlClient()
+
+    # TODO: We should restore original files after the test is complete
+
+    return cc_client
+
+@pytest.fixture(scope="module")
+def files(cc_client):
+    # Explicitly call the base class method to circumvent the cache
+    return CashCtrlClient.list_files(cc_client)
+
 def test_files_cache_is_none_on_init(cc_client):
     assert cc_client._files_cache is None
     assert cc_client._files_cache_time is None
@@ -37,10 +52,7 @@ def test_files_cache_is_none_on_init(cc_client):
 def test_cached_files_same_to_actual(cc_client, files):
     pd.testing.assert_frame_equal(cc_client.list_files(), files)
 
-def test_file_id_to_path(cc_client, mock_directory):
-    cc_client.mirror_directory(mock_directory, delete_files=True)
-    cc_client.invalidate_files_cache()
-    files = CashCtrlClient.list_files(cc_client)
+def test_file_id_to_path(cc_client, files):
     assert cc_client.file_id_to_path(files['id'].iat[0]) == files['path'].iat[0], (
         'Cached file path doesn`t correspond actual'
     )
@@ -52,10 +64,7 @@ def test_file_id_to_path_invalid_id_raises_error(cc_client):
 def test_file_id_to_path_invalid_id_returns_none_when_allowed_missing(cc_client):
     assert cc_client.file_id_to_path(99999999, allow_missing=True) is None
 
-def test_file_path_to_id(cc_client, mock_directory):
-    cc_client.mirror_directory(mock_directory, delete_files=True)
-    cc_client.invalidate_files_cache()
-    files = CashCtrlClient.list_files(cc_client)
+def test_file_path_to_id(cc_client, files):
     assert cc_client.file_path_to_id(files['path'].iat[0]) == files['id'].iat[0], (
         'Cached file id doesn`t correspond actual id'
     )
