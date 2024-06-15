@@ -31,8 +31,8 @@ def mock_directory(tmp_path):
     return tmp_path
 
 def test_files_cache_is_none_on_init(cc_client):
-    assert cc_client._files_cache == None
-    assert cc_client._files_cache_time == None
+    assert cc_client._files_cache is None
+    assert cc_client._files_cache_time is None
 
 def test_cached_files_same_to_actual(cc_client, files):
     pd.testing.assert_frame_equal(cc_client.list_files(), files)
@@ -42,7 +42,7 @@ def test_file_id_to_path(cc_client, mock_directory):
     cc_client.invalidate_files_cache()
     files = CashCtrlClient.list_files(cc_client)
     assert cc_client.file_id_to_path(files['id'].iat[0]) == files['path'].iat[0], (
-        'Cached file doesn`t correspond actual'
+        'Cached file path doesn`t correspond actual'
     )
 
 def test_file_id_to_path_invalid_id_raises_error(cc_client):
@@ -50,7 +50,7 @@ def test_file_id_to_path_invalid_id_raises_error(cc_client):
         cc_client.file_id_to_path(99999999)
 
 def test_file_id_to_path_invalid_id_returns_none_when_allowed_missing(cc_client):
-    cc_client.file_id_to_path(99999999, allow_missing=True) == None
+    assert cc_client.file_id_to_path(99999999, allow_missing=True) is None
 
 def test_file_path_to_id(cc_client, mock_directory):
     cc_client.mirror_directory(mock_directory, delete_files=True)
@@ -65,7 +65,7 @@ def test_file_path_to_id_with_invalid_path_raises_error(cc_client):
         cc_client.file_path_to_id(99999999)
 
 def test_file_path_to_id_with_invalid_returns_none_when_allowed_missing(cc_client):
-    cc_client.file_path_to_id(99999999, allow_missing=True) == None
+    assert cc_client.file_path_to_id(99999999, allow_missing=True) is None
 
 def test_files_cache_timeout(cc_client):
     cc_client = CachedCashCtrlClient(cache_timeout=1)

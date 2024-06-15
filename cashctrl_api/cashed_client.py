@@ -141,7 +141,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             str | none: The file path associated with the provided id
-                        or None is allow_missing is True and there is no such file path.
+                        or None if allow_missing is True and there is no such file path.
         """
         df = self.list_files()
         result = df.loc[df['id'] == id, 'path']
@@ -161,7 +161,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             int | none: The id associated with the file path
-                        or None is allow_missing is True and there is no such file id.
+                        or None if allow_missing is True and there is no such file id.
         """
         df = self.list_files()
         result = df.loc[df['path'] == path, 'id']
