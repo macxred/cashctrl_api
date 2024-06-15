@@ -57,6 +57,13 @@ def test_file_id_to_path(cc_client, files):
         'Cached file path doesn`t correspond actual'
     )
 
+def test_file_id_to_nested_path(cc_client, files):
+    path = "/nested/subdir/file4.txt"
+    id = files.loc[files['path'] == path, 'id'].item()
+    assert cc_client.file_id_to_path(id) == path, (
+        'Cached nested file path doesn`t correspond actual.'
+    )
+
 def test_file_id_to_path_invalid_id_raises_error(cc_client):
     with pytest.raises(ValueError, match='No path found for id'):
         cc_client.file_id_to_path(99999999)
@@ -65,6 +72,13 @@ def test_file_id_to_path_invalid_id_returns_none_when_allowed_missing(cc_client)
     assert cc_client.file_id_to_path(99999999, allow_missing=True) is None
 
 def test_file_path_to_id(cc_client, files):
+    path = "/nested/subdir/file4.txt"
+    id = files.loc[files['path'] == path, 'id'].item()
+    assert cc_client.file_path_to_id(path) == id, (
+        'Cached nested file id doesn`t correspond actual id'
+    )
+
+def test_nested_file_path_to_id(cc_client, files):
     assert cc_client.file_path_to_id(files['path'].iat[0]) == files['id'].iat[0], (
         'Cached file id doesn`t correspond actual id'
     )
