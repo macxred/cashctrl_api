@@ -13,12 +13,13 @@ def cc_client():
 
 @pytest.fixture(scope="module")
 def tax_rates():
+    # Explicitly call the base class method to circumvent the cache
     cc_client = CachedCashCtrlClient()
-    return CashCtrlClient.list_tax_rates(cc_client)
+    return cc_client.list_tax_rates()
 
 def test_tax_rates_cache_is_none_on_init(cc_client):
-    assert cc_client._tax_rates_cache == None
-    assert cc_client._tax_rates_cache_time == None
+    assert cc_client._tax_rates_cache is None
+    assert cc_client._tax_rates_cache_time is None
 
 def test_cached_tax_codes_same_to_actual(cc_client, tax_rates):
     pd.testing.assert_frame_equal(cc_client.list_tax_rates(), tax_rates)
@@ -33,7 +34,7 @@ def test_tax_code_from_id_invalid_id_raises_error(cc_client):
         cc_client.tax_code_from_id(99999999)
 
 def test_tax_code_from_id_invalid_id_returns_none_with_allowed_missing(cc_client):
-    assert cc_client.tax_code_from_id(99999999, allow_missing=True) == None
+    assert cc_client.tax_code_from_id(99999999, allow_missing=True) is None
 
 def test_tax_code_to_id(cc_client, tax_rates):
     assert cc_client.tax_code_to_id(tax_rates['name'].iat[1]) == tax_rates['id'].iat[1], (
@@ -45,7 +46,7 @@ def test_tax_code_to_id_with_invalid_tax_code_raises_error(cc_client):
         cc_client.tax_code_to_id(99999999)
 
 def test_tax_code_to_id_with_invalid_tax_code_returns_none_with_allowed_missing(cc_client):
-    assert cc_client.tax_code_to_id(99999999,  allow_missing=True) == None
+    assert cc_client.tax_code_to_id(99999999, allow_missing=True) is None
 
 def test_tax_rates_cache_timeout(cc_client):
     cc_client = CachedCashCtrlClient(cache_timeout=1)

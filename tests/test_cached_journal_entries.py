@@ -13,12 +13,13 @@ def cc_client():
 
 @pytest.fixture(scope="module")
 def journal_entries():
+    # Explicitly call the base class method to circumvent the cache
     cc_client = CachedCashCtrlClient()
-    return CashCtrlClient.list_journal_entries(cc_client)
+    return cc_client.list_journal_entries()
 
 def test_journal_cache_is_none_on_init(cc_client):
-    assert cc_client._journal_cache == None
-    assert cc_client._journal_cache_time == None
+    assert cc_client._journal_cache is None
+    assert cc_client._journal_cache_time is None
 
 def test_cached_journal_entries_same_to_actual(cc_client, journal_entries):
     pd.testing.assert_frame_equal(cc_client.list_journal_entries(), journal_entries)

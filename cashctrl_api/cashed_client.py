@@ -146,7 +146,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             int | none: The account number associated with the provided id
-                        or None is allow_missing is True and there is no such account.
+                        or None if allow_missing is True and there is no such account.
 
         Raises:
             ValueError: If the id does not exist and `allow_missing=False`, or if the id is duplicated.
@@ -174,7 +174,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             int | None: The id associated with the provided account number.
-                        or None is allow_missing is True and there is no such account.
+                        or None if allow_missing is True and there is no such account.
 
         Raises:
             ValueError: If the account number does not exist and `allow_missing=False`,
@@ -291,7 +291,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             str | None: The tax code name associated with the provided id.
-                        or None is allow_missing is True and there is no such tax code.
+                        or None if allow_missing is True and there is no such tax code.
 
         Raises:
             ValueError: If the tax id does not exist and `allow_missing=False`,
@@ -320,7 +320,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             int | None: The id associated with the provided tax code name.
-                        or None is allow_missing is True and there is no such tax code.
+                        or None if allow_missing is True and there is no such tax code.
 
         Raises:
             ValueError: If the tax code does not exist and `allow_missing=False`,

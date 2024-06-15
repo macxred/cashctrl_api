@@ -13,8 +13,9 @@ def cc_client():
 
 @pytest.fixture(scope="module")
 def accounts():
+    # Explicitly call the base class method to circumvent the cache
     cc_client = CachedCashCtrlClient()
-    return CashCtrlClient.list_accounts(cc_client)
+    return cc_client.list_accounts()
 
 def test_account_cache_is_none_on_init(cc_client):
     assert cc_client._accounts_cache == None
