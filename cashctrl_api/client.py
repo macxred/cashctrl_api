@@ -421,7 +421,7 @@ class CashCtrlClient:
                                in ACCOUNT_COLUMNS.items() if key != 'path'}
         df = enforce_dtypes(accounts, columns_except_path)
         if len(df) > 0:
-            categories = self.list_categories('account')[['path', 'id']]
+            categories = self.list_categories('account', include_system=True)[['path', 'id']]
             categories = categories.rename(columns={'id': 'categoryId'})
             df = df.merge(categories, on='categoryId', how='left')
             df['path'] = df['path'].fillna('')

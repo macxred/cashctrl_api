@@ -108,7 +108,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS | {'number': 'Int64'} schema.
         """
         if self._account_categories_cache is None or self._is_expired(self._account_categories_cache_time):
-            self._account_categories_cache = self.list_categories('account')
+            self._account_categories_cache = self.list_categories('account', include_system=True)
             self._account_categories_cache_time = datetime.now()
         return self._account_categories_cache
 
