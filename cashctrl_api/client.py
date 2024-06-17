@@ -4,6 +4,7 @@ Module to interact with the REST API of the CashCtrl accounting service.
 
 import json
 import os
+import re
 from requests import request, put, Response, RequestException, HTTPError
 from mimetypes import guess_type
 from pathlib import Path
@@ -265,6 +266,9 @@ class CashCtrlClient:
                 target_series = pd.Series(target).unique()
             to_delete = [node for node in category_list['path']
                          if not target_series.str.startswith(node).any()]
+            # Silently ignore account category root nodes, they are immutable in CashCtrl
+            if resource == 'account':
+                to_delete = [path for path in to_delete if not re.fullmatch('/[^/]*', path)]
 
             if to_delete:
                 to_delete.sort(reverse=True) # Delete from leaf to root
@@ -276,12 +280,14 @@ class CashCtrlClient:
         if resource == 'account':
             for row in category_list.to_dict('records'):
                 if row['path'] in target and row['number'] != target[row['path']]:
-                    params = {
-                        'id': row['id'],
-                        'name': row['text'],
-                        'number': target[row['path']],
-                        'parentId': row['parentId']
-                    }
+                    # Silently ignore account category root nodes, they are immutable in CashCtrl
+                    if not re.fullmatch('/[^/]*', row['path']):
+                        params = {
+                            'id': row['id'],
+                            'name': row['text'],
+                            'number': target[row['path']],
+                            'parentId': row['parentId']
+                        }
                     self.post('account/category/update.json', params=params)
 
         # Create missing categories
