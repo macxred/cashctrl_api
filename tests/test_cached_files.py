@@ -40,13 +40,11 @@ def cc_client(mock_directory):
 
     yield cc_client
 
+    # Delete files added in the test
     files = cc_client.list_files()
-    # check is this needed
     to_delete = set(files['id']).difference(initial_files['id'])
     params = { 'ids': ','.join(str(i) for i in to_delete), 'force': True }
     cc_client.post("file/delete.json", params=params)
-    # Empty recycle bin to release references before category deletion
-    cc_client.post("file/empty_archive.json")
 
 @pytest.fixture(scope="module")
 def files(cc_client):
