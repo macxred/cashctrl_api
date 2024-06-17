@@ -92,13 +92,13 @@ def test_update_file_categories_raises_error_when_creating_account_root_node():
 def test_account_category_update():
     """Test update_categories for accounts and then restores initial state"""
     cc_client = CashCtrlClient()
-    initial_categories = cc_client.list_categories('account')
+    initial_categories = cc_client.list_categories('account', include_system=True)
 
     # Check categories that do not already exist on remote are created
     assert not all([category in list(initial_categories['path']) for category in account_categories]), (
         "All account catetegories are already present on the server.")
     cc_client.update_categories('account', target=account_categories)
-    remote = cc_client.list_categories('account')
+    remote = cc_client.list_categories('account', include_system=True)
     remote_dict = remote.set_index('path')['number'].to_dict()
     assert all(category in remote_dict.items() for category in account_categories.items()), (
         "Not all categories were updated")
@@ -107,7 +107,7 @@ def test_account_category_update():
     slash_path = '/Assets/Anlagevermögen/bla \\ blaaaa'
     assert slash_path not in list(remote['path']), 'Slash_path already exists on remote.'
     cc_client.update_categories('account', target={slash_path: 6000})
-    remote = cc_client.list_categories('account')
+    remote = cc_client.list_categories('account', include_system=True)
     assert slash_path in list(remote['path']), 'Slash_path was not created.'
     slash_node = remote[remote['path'] == slash_path]
     assert slash_node['text'].iat[0] == 'bla / blaaaa', (
@@ -116,7 +116,7 @@ def test_account_category_update():
 
     # Check sequence number is updated for existing paths
     cc_client.update_categories('account', target={slash_path: 42})
-    remote = cc_client.list_categories('account')
+    remote = cc_client.list_categories('account', include_system=True)
     assert slash_path in list(remote['path']), 'Slash_path has vanished.'
     slash_node = remote[remote['path'] == slash_path]
     assert slash_node['number'].iat[0] == 42, 'Sequence number not updated.'
@@ -124,6 +124,6 @@ def test_account_category_update():
     # Restore initial state
     initial_paths = initial_categories.set_index('path')['number'].to_dict()
     cc_client.update_categories('account', target=initial_paths, delete=True)
-    updated = cc_client.list_categories('account')
+    updated = cc_client.list_categories('account', include_system=True)
     updated = updated.set_index('path')['number'].to_dict()
     assert updated == initial_paths, "Initial categories were not restored"
