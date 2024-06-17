@@ -388,10 +388,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         super().upload_file(*args, **kwargs)
         self.invalidate_files_cache()
 
-    def update_categories(self, *args, **kwargs):
-        super().update_categories(*args, **kwargs)
-        resource = kwargs.get('resource', None)
-
+    def update_categories(self, resource: str, *args, **kwargs):
+        super().update_categories(resource, *args, **kwargs)
         if resource == 'file':
             self.invalidate_files_cache()
         elif resource == 'account':
