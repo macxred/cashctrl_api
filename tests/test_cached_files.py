@@ -30,15 +30,25 @@ def mock_directory(tmp_path_for_module):
 def cc_client(mock_directory):
     """Create a CachedCashCtrlClient, populate with files and folders."""
     cc_client = CachedCashCtrlClient()
-    cc_client.mirror_directory(mock_directory, delete_files=True)
+    initial_files = cc_client.list_files()
+    # check is this needed
+    initial_categories = cc_client.list_categories('file')
+    cc_client.mirror_directory(mock_directory, delete_files=False)
 
     # We create a fresh instance with empty cache, because the cache is
     # populated when mirroring a directory
     cc_client = CachedCashCtrlClient()
 
-    # TODO: We should restore original files after the test is complete
+    yield cc_client
 
-    return cc_client
+    files = cc_client.list_files()
+    # check is this needed
+    to_delete = set(files['id']).difference(initial_files['id'])
+    params = { 'ids': ','.join(str(i) for i in to_delete), 'force': True }
+    cc_client.post("file/delete.json", params=params)
+    # Empty recycle bin to release references before category deletion
+    cc_client.post("file/empty_archive.json")
+    cc_client.update_categories('file', target=initial_categories['path'], delete=True)
 
 @pytest.fixture(scope="module")
 def files(cc_client):

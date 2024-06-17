@@ -2,10 +2,11 @@
 Module to extend the CashCtrlClient class with caching capabilities.
 """
 
+from pathlib import Path
 import time
 from datetime import datetime, timedelta
 import pandas as pd
-from typing import Optional
+from typing import Dict, List, Optional
 from cashctrl_api import CashCtrlClient
 
 class CachedCashCtrlClient(CashCtrlClient):
@@ -377,6 +378,90 @@ class CachedCashCtrlClient(CashCtrlClient):
             raise ValueError(f"Multiple ids found for tax code {name}")
         else:
             return result.item()
+
+    def mirror_directory(self, directory: str | Path,
+                        delete_files: bool = False,
+                        delete_categories: bool = False):
+        """
+        Recursively mirrors a local directory on the CashCtrl server.
+        Invalidates files cache after mirroring.
+
+        Ensures that the remote file system reflects the state of the local
+        directory, and that local sub-folders are mapped to remote categories.
+        The method creates, updates, and optionally deletes files and
+        categories (folders) on the server to match the local structure.
+
+        Parameters:
+            directory (str | Path): Path of the local directory to mirror.
+            delete_files (bool, optional): If True, deletes remote files
+                without a corresponding local file. Also empties the recycle
+                bin to release references and allow for category deletion.
+            delete_categories (bool, optional): If True, deletes unused
+                categories (folders) on the server.
+        """
+        super().mirror_directory(directory=directory,
+                                 delete_files=delete_files,
+                                 delete_categories=delete_categories)
+        self.invalidate_files_cache()
+
+    def upload_file(self,
+                    file: str | Path,
+                    id: int | str | None = None,
+                    name: str | None = None,
+                    category: int | str | None = None,
+                    mime_type: str | None = None) -> int:
+        """
+        Uploads a file to the server, marks it for persistent storage and,
+        if a remote file `id` is provided, replaces an existing file.
+        Invalidates files cache after uploading.
+
+        Args:
+            path (str | Path): Path to the local file to upload.
+            id (int | str | None): id of remote file to replace with new file.
+            name (str | None): The filename on the remote server;
+                               defaults to the local file's base name.
+            category (int | str | None): id of category the file is stored in.
+            mime_type (str | None): The file's MIME type; guessed if not
+                                    provided.
+
+        Returns:
+            int: The Id of the newly created or replaced file.
+        """
+        super().upload_file(file=file,
+                            id=id,
+                            name=name,
+                            category=category,
+                            mime_type=mime_type)
+        self.invalidate_files_cache()
+
+    def update_categories(self, resource: str, target: Dict[str, int] | List[str],
+                          delete: bool = False):
+        """
+        Updates the server's category tree for a specified resource,
+        synchronizing it with the provided category list.
+        Invalidates corresponding cache after.
+
+        Backslashes ('\\') in category names are converted to slashes ('/').
+        This allows slashes in category names while reserving the slash
+        character as separator for hierarchy levels in path notation.
+
+        Args:
+            resource (str): Resource type ('account', 'file', etc.).
+            target (Dict[str, int] | List[str]): Target category paths in Unix-like format.
+                                                 Type of [str, int] is suitable only for 'account' resource
+                                                 and represent key-value pairs of path and associated account number
+                                                 Type of List[str] is suitable for the rest of the resources and should
+                                                 contain just a list of paths in string format
+            delete (bool, optional): If True, deletes categories not present
+                                     in the provided list. Defaults to False.
+        """
+        super().update_categories(resource=resource,
+                                  target=target,
+                                  delete=delete)
+        if resource == 'file':
+            self.invalidate_files_cache()
+        elif resource == 'account':
+            self.invalidate_account_categories_cache()
 
 
     def invalidate_accounts_cache(self) -> None:

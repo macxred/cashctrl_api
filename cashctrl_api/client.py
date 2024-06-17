@@ -262,7 +262,7 @@ class CashCtrlClient:
             if resource == 'account':
                 target_series = pd.Series(target.keys())
             else:
-                target_series = pd.Series(target).unique()
+                target_series = pd.Series(pd.Series(target).unique())
             to_delete = [node for node in category_list['path']
                          if not target_series.str.startswith(node).any()]
 
