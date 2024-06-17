@@ -380,32 +380,18 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def mirror_directory(self, directory: str | Path,
-                        delete_files: bool = False,
-                        delete_categories: bool = False):
-        super().mirror_directory(directory=directory,
-                                 delete_files=delete_files,
-                                 delete_categories=delete_categories)
+    def mirror_directory(self, *args, **kwargs):
+        super().mirror_directory(*args, **kwargs)
         self.invalidate_files_cache()
 
-    def upload_file(self,
-                    file: str | Path,
-                    id: int | str | None = None,
-                    name: str | None = None,
-                    category: int | str | None = None,
-                    mime_type: str | None = None) -> int:
-        super().upload_file(file=file,
-                            id=id,
-                            name=name,
-                            category=category,
-                            mime_type=mime_type)
+    def upload_file(self, *args, **kwargs) -> int:
+        super().upload_file(*args, **kwargs)
         self.invalidate_files_cache()
 
-    def update_categories(self, resource: str, target: Dict[str, int] | List[str],
-                          delete: bool = False):
-        super().update_categories(resource=resource,
-                                  target=target,
-                                  delete=delete)
+    def update_categories(self, *args, **kwargs):
+        super().update_categories(*args, **kwargs)
+        resource = kwargs.get('resource', None)
+
         if resource == 'file':
             self.invalidate_files_cache()
         elif resource == 'account':

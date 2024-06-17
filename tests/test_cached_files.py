@@ -31,7 +31,6 @@ def cc_client(mock_directory):
     """Create a CachedCashCtrlClient, populate with files and folders."""
     cc_client = CachedCashCtrlClient()
     initial_files = cc_client.list_files()
-    # check is this needed
     cc_client.mirror_directory(mock_directory, delete_files=False)
 
     # We create a fresh instance with empty cache, because the cache is
