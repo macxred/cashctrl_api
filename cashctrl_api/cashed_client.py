@@ -2,10 +2,12 @@
 Module to extend the CashCtrlClient class with caching capabilities.
 """
 
+import inspect
+from pathlib import Path
 import time
 from datetime import datetime, timedelta
 import pandas as pd
-from typing import Optional
+from typing import Dict, List, Optional
 from cashctrl_api import CashCtrlClient
 
 class CachedCashCtrlClient(CashCtrlClient):
@@ -134,6 +136,46 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._files_cache = super().list_files()
             self._files_cache_time = datetime.now()
         return self._files_cache
+
+    def file_id_to_path(self, id: int, allow_missing: bool = False) -> str | None:
+        """
+        Retrieve the file path corresponding to a given id.
+
+        Returns:
+            str | none: The file path associated with the provided id
+                        or None if allow_missing is True and there is no such file path.
+        """
+        df = self.list_files()
+        result = df.loc[df['id'] == id, 'path']
+        if result.empty:
+            if  allow_missing:
+                return None
+            else:
+                raise ValueError(f"No path found for id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple paths found for id: {id}")
+        else:
+            return result.item()
+
+    def file_path_to_id(self, path: str, allow_missing: bool = False) -> int | None:
+        """
+        Retrieve the file id corresponding to a given file path.
+
+        Returns:
+            int | none: The id associated with the file path
+                        or None if allow_missing is True and there is no such file id.
+        """
+        df = self.list_files()
+        result = df.loc[df['path'] == path, 'id']
+        if result.empty:
+            if  allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple id found for path: {path}")
+        else:
+            return result.item()
 
     def account_from_id(self, id: int, allow_missing = False) -> int | None:
         """
@@ -338,6 +380,20 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
+    def mirror_directory(self, *args, **kwargs):
+        super().mirror_directory(*args, **kwargs)
+        self.invalidate_files_cache()
+
+    def upload_file(self, *args, **kwargs) -> int:
+        super().upload_file(*args, **kwargs)
+        self.invalidate_files_cache()
+
+    def update_categories(self, resource: str, *args, **kwargs):
+        super().update_categories(resource, *args, **kwargs)
+        if resource == 'file':
+            self.invalidate_files_cache()
+        elif resource == 'account':
+            self.invalidate_account_categories_cache()
 
     def invalidate_accounts_cache(self) -> None:
         """
