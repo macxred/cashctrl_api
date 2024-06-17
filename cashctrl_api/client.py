@@ -232,7 +232,8 @@ class CashCtrlClient:
         return df.sort_values('path')
 
     def update_categories(self, resource: str, target: Dict[str, int] | List[str],
-                          delete: bool = False):
+                          delete: bool = False,
+                          ignore_account_root_nodes: bool = False):
         """
         Updates the server's category tree for a specified resource,
         synchronizing it with the provided category list.
@@ -250,6 +251,8 @@ class CashCtrlClient:
                                                  contain just a list of paths in string format
             delete (bool, optional): If True, deletes categories not present
                                      in the provided list. Defaults to False.
+            ignore_account_root_nodes: If True, silently ignores account root categories.
+                                       Account root nodes re immutable in CashCtrl.
         """
         if resource == 'account' and not isinstance(target, dict):
             raise ValueError("Target should be a dict if resource == 'account'.")
@@ -267,7 +270,7 @@ class CashCtrlClient:
             to_delete = [node for node in category_list['path']
                          if not target_series.str.startswith(node).any()]
             # Silently ignore account category root nodes, they are immutable in CashCtrl
-            if resource == 'account':
+            if ignore_account_root_nodes and resource == 'account':
                 to_delete = [path for path in to_delete if not re.fullmatch('/[^/]*', path)]
 
             if to_delete:
@@ -280,8 +283,12 @@ class CashCtrlClient:
         if resource == 'account':
             for row in category_list.to_dict('records'):
                 if row['path'] in target and row['number'] != target[row['path']]:
-                    # Silently ignore account category root nodes, they are immutable in CashCtrl
-                    if not re.fullmatch('/[^/]*', row['path']):
+                    if re.fullmatch('/[^/]*', row['path']):
+                        if not ignore_account_root_nodes:
+                            raise ValueError(
+                                f"Failed to update sequence number for '{row['path']}'. "
+                                "Account root categories are immutable.")
+                    else:
                         params = {
                             'id': row['id'],
                             'name': row['text'],
