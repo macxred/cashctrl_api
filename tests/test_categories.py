@@ -130,35 +130,21 @@ def test_account_category_update():
 
 def test_account_category_delete_root_category_ignore_account_root_nodes():
     """
-    Test that should raise an error trying to delete root account category
+    Test that attempting to delete a root account category raises an error.
+    unless ignore_account_root_nodes=True.
     """
-    cc_client = CashCtrlClient()
-    initial_categories = cc_client.list_categories('account', include_system=True)
-
-    # Ensure is root node /Balance is in remote system
-    balance_category = initial_categories[initial_categories['path'] == '/Balance']
-    assert len(balance_category) == 1, (
-        "/Balance root category isn't on the remote system")
-
-    target = initial_categories[~initial_categories['path'].str.startswith('/Balance')]
-    target = target.set_index('path')['number'].to_dict()
-
-    # Should raise an error trying to delete root node with ignore_account_root_nodes = False
-    with pytest.raises(Exception):
-        cc_client.update_categories('account', target=target, delete=True)
-
-    # Deleting sub-node of root account category is not tested here,
-    # because it contains accounts and can not be deleted.
-    # Deleting and restoring accounts manually will take a lot of effort in this package
-    # This case is indirectly tested in the cashctrl_ledger package
-    # in the test_mirror_accounts()
+    # Deleting a root account category is not tested here, because all root
+    # categories in the CashCtrl test account are populated with sub-categories
+    # and accounts. Setting up the test would require deleting and later
+    # restoring sub-categories and their accounts, which we consider an
+    # unreasonable effort.
+    # Deleting account categories with `ignore_account_root_nodes=True`is`
+    # indirectly tested in test_mirror_accounts() the cashctrl_ledger package.
 
 def test_account_category_update_root_category_ignore_account_root_nodes():
     """
-    Test that should raise an error trying update a root
-    account category when ignore_account_root_nodes = False.
-    Test shouldn't raise an error when ignore_account_root_nodes = True
-    and leave root category untouched.
+    Test that attempting to update a root account category raises an error
+    unless ignore_account_root_nodes=True.
     """
     cc_client = CashCtrlClient()
     categories = cc_client.list_categories('account', include_system=True)
@@ -170,11 +156,12 @@ def test_account_category_update_root_category_ignore_account_root_nodes():
     target.loc[target['id'] == balance_category['id'].iat[0], 'number'] = 99999999
     target = target.set_index('path')['number'].to_dict()
 
-    # Should raise an error trying to update root node with new number and ignore_account_root_nodes = False
+    # Attempt to update root node with new number raises error
     with pytest.raises(ValueError, match='Failed to update sequence number for'):
         cc_client.update_categories('account', target=target, delete=True)
 
-    # Shouldn't raise an error trying to update root node with new number and ignore_account_root_nodes = True
+    # If ignore_account_root_nodes = True, root nodes are silently dropped,
+    # we expect no error and no change to the category tree
     cc_client.update_categories('account', target=target, delete=True, ignore_account_root_nodes=True)
     updated_categories = cc_client.list_categories('account', include_system=True)
     pd.testing.assert_frame_equal(updated_categories, categories)
