@@ -134,7 +134,6 @@ def test_account_category_delete_root_category_ignore_account_root_nodes():
     """
     cc_client = CashCtrlClient()
     initial_categories = cc_client.list_categories('account', include_system=True)
-    categories_dict = initial_categories.set_index('path')['number'].to_dict()
 
     # Ensure is root node /Balance is in remote system
     balance_category = initial_categories[initial_categories['path'] == '/Balance']
@@ -148,18 +147,11 @@ def test_account_category_delete_root_category_ignore_account_root_nodes():
     with pytest.raises(Exception):
         cc_client.update_categories('account', target=target, delete=True)
 
-    # This don`t work because /Balance child nodes have assigned accounts
-
-    # Shouldn't raise an error trying to delete root node with ignore_account_root_nodes = True
-    # cc_client.update_categories('account', target=target, delete=True, ignore_account_root_nodes=True)
-    # expected = initial_categories[~(initial_categories['path'].str.startswith('/Balance')
-    #                                 & (initial_categories['path'] != '/Balance'))]
-    # updated_categories = cc_client.list_categories('account', include_system=True)
-    # pd.testing.assert_frame_equal(updated_categories, expected)
-
-    # # Restore initial categories
-    # cc_client.update_categories('account', target=categories_dict, delete=True)
-
+    # Deleting sub-node of root account category is not tested here,
+    # because it contains accounts and can not be deleted.
+    # Deleting and restoring accounts manually will take a lot of effort in this package
+    # This case is indirectly tested in the cashctrl_ledger package
+    # in the test_mirror_accounts()
 
 def test_account_category_update_root_category_ignore_account_root_nodes():
     """
