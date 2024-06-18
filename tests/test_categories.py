@@ -96,7 +96,7 @@ def test_account_category_update():
 
     # Check categories that do not already exist on remote are created
     assert not all([category in list(initial_categories['path']) for category in account_categories]), (
-        "All account catetegories are already present on the server.")
+        "All account categories are already present on the server.")
     cc_client.update_categories('account', target=account_categories)
     remote = cc_client.list_categories('account', include_system=True)
     remote_dict = remote.set_index('path')['number'].to_dict()
@@ -127,3 +127,72 @@ def test_account_category_update():
     updated = cc_client.list_categories('account', include_system=True)
     updated = updated.set_index('path')['number'].to_dict()
     assert updated == initial_paths, "Initial categories were not restored"
+
+def test_account_category_delete_root_category_ignore_account_root_nodes():
+    """
+    Test that should raise an error trying to delete root account category
+    """
+    cc_client = CashCtrlClient()
+    initial_categories = cc_client.list_categories('account', include_system=True)
+    categories_dict = initial_categories.set_index('path')['number'].to_dict()
+
+    # Ensure is root node /Balance is in remote system
+    balance_category = initial_categories[initial_categories['path'] == '/Balance']
+    assert len(balance_category) == 1, (
+        "/Balance root category isn't on the remote system")
+
+    target = initial_categories[~initial_categories['path'].str.startswith('/Balance')]
+    target = target.set_index('path')['number'].to_dict()
+
+    # Should raise an error trying to delete root node with ignore_account_root_nodes = False
+    with pytest.raises(Exception):
+        cc_client.update_categories('account', target=target, delete=True)
+
+    # This don`t work because /Balance child nodes have assigned accounts
+
+    # Shouldn't raise an error trying to delete root node with ignore_account_root_nodes = True
+    # cc_client.update_categories('account', target=target, delete=True, ignore_account_root_nodes=True)
+    # expected = initial_categories[~(initial_categories['path'].str.startswith('/Balance')
+    #                                 & (initial_categories['path'] != '/Balance'))]
+    # updated_categories = cc_client.list_categories('account', include_system=True)
+    # pd.testing.assert_frame_equal(updated_categories, expected)
+
+    # # Restore initial categories
+    # cc_client.update_categories('account', target=categories_dict, delete=True)
+
+
+def test_account_category_update_root_category_ignore_account_root_nodes():
+    """
+    Test that should raise an error trying update a root
+    account category when ignore_account_root_nodes = False.
+    Test shouldn't raise an error when ignore_account_root_nodes = True
+    and leave root category untouched.
+    """
+    cc_client = CashCtrlClient()
+    categories = cc_client.list_categories('account', include_system=True)
+    balance_category = categories[categories['path'] == '/Balance']
+    assert len(balance_category) == 1, (
+        "/Balance root category isn't on the remote system")
+
+    target = categories.copy()
+    target.loc[target['id'] == balance_category['id'].iat[0], 'number'] = 99999999
+    target = target.set_index('path')['number'].to_dict()
+
+    # Should raise an error trying to update root node with new number and ignore_account_root_nodes = False
+    with pytest.raises(ValueError, match='Failed to update sequence number for'):
+        cc_client.update_categories('account', target=target, delete=True)
+
+    # Shouldn't raise an error trying to update root node with new number and ignore_account_root_nodes = True
+    cc_client.update_categories('account', target=target, delete=True, ignore_account_root_nodes=True)
+    updated_categories = cc_client.list_categories('account', include_system=True)
+    pd.testing.assert_frame_equal(updated_categories, categories)
+
+
+def test_account_category_create_new_root_category_raise_error():
+    """Test that should raise an error trying create a new root account category"""
+    cc_client = CashCtrlClient()
+    categories = cc_client.list_categories('account', include_system=True)
+    target = categories.set_index('path')['number'].to_dict()
+    target['/New_root'] = 9999999999
+    with pytest.raises(ValueError, match='Cannot create new root nodes for account categories'):
+        cc_client.update_categories('account', target=target)

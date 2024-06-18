@@ -295,7 +295,7 @@ class CashCtrlClient:
                             'number': target[row['path']],
                             'parentId': row['parentId']
                         }
-                    self.post('account/category/update.json', params=params)
+                        self.post('account/category/update.json', params=params)
 
         # Create missing categories
         missing_leaves = set(target).difference(categories).difference('/')
