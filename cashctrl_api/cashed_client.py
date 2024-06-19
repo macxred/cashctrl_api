@@ -234,6 +234,35 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
+    def account_to_currency(self, account: int, allow_missing = False) -> str | None:
+        """
+        Retrieve the account currency corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): If True, return None if the account number does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The currency associated with the provided account number.
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the account number does not exist and `allow_missing=False`,
+                        or if the number is duplicated.
+        """
+        df = self.list_accounts()
+        result = df.loc[df['number'] == account, 'currencyCode']
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No currency found for account: {account}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple currencies found for account: {account}")
+        else:
+            return result.item()
+
     def currency_from_id(self, id: int) -> str:
         """
         Retrieve the currency corresponding to a given id.

@@ -48,6 +48,18 @@ def test_account_to_id_with_invalid_account_number_raises_error(cc_client):
 def test_account_to_id_with_invalid_account_number_returns_none_with_allowed_missing(cc_client):
     assert cc_client.account_to_id(99999999, allow_missing=True) == None
 
+def test_account_to_currency(cc_client, accounts):
+    assert cc_client.account_to_currency(accounts['number'].iat[1]) == accounts['currencyCode'].iat[1], (
+        'Cached account currenca doesn`t correspond actual currency'
+    )
+
+def test_account_to_currency_with_invalid_account_number_raises_error(cc_client):
+    with pytest.raises(ValueError, match='No currency found for account'):
+        cc_client.account_to_currency(99999999)
+
+def test_account_to_currency_with_invalid_account_number_returns_none_with_allowed_missing(cc_client):
+    assert cc_client.account_to_currency(99999999, allow_missing=True) == None
+
 def test_account_cache_timeout(cc_client):
     cc_client = CachedCashCtrlClient(cache_timeout=1)
     cc_client.list_accounts()
