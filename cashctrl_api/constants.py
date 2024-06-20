@@ -77,13 +77,13 @@ ACCOUNT_COLUMNS = {
         'allocationCount': 'string[python]',
         'costCenterIds': 'string[python]',
         'costCenterNumbers': 'string[python]',
-        'openingAmount': 'Int64',
-        'endAmount': 'string[python]',
+        'openingAmount': 'float64',
+        'endAmount': 'float64',
         'targetMin': 'string[python]',
         'targetMax': 'string[python]',
         'targetDisplay': 'string[python]',
-        'defaultCurrencyOpeningAmount': 'Int64',
-        'defaultCurrencyEndAmount': 'string[python]',
+        'defaultCurrencyOpeningAmount': 'float64',
+        'defaultCurrencyEndAmount': 'float64',
         'isInactive': 'bool'
 }
 JOURNAL_ENTRIES = {
