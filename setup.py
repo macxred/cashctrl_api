@@ -2,11 +2,19 @@ from setuptools import setup, find_packages
 
 setup(
     name="cashctrl_api",
-    version="v0.0.1",
+    version="0.0.1",
     description="Python client for the CashCtrl REST API",
-    url='https://github.com/macxred/cashctrl_api',
+    url="https://github.com/macxred/cashctrl_api",
     author="Lukas Elmiger",
-    python_requires='>3.9',
-    install_requires=['requests', 'pandas'],
-    packages=find_packages(exclude=('tests', 'examples'))
+    python_requires=">=3.9",
+    install_requires=["requests", "pandas"],
+    packages=find_packages(exclude=("tests", "examples")),
+    extras_require={
+        "dev": [
+            "flake8",
+            "flake8-import-order",
+            "flake8-docstrings",
+            "flake8-bugbear"
+        ]
+    }
 )
