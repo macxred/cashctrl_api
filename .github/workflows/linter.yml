@@ -9,7 +9,7 @@ on:
   # Manually triggered
   workflow_dispatch:
 
-name: Unit/Integration Tests
+name: Lint with Flake8
 
 concurrency:
   # Within the same concurrency group, run only one job at a time
@@ -50,7 +50,7 @@ jobs:
           . venv/bin/activate
 
       - name: Install dependencies
-        run: pip install coverage pytest pandas
+        run: pip install coverage pytest pandas flake8
 
       - name: Install package
         run: python setup.py develop
