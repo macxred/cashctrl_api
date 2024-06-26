@@ -15,14 +15,14 @@ def list_directory(directory: str | Path,
         directory (str | Path): The directory to list.
         recursive (bool): If True, lists items recursively. Defaults to False.
         exclude_dirs (bool): If True, only files are listed, not directories.
-            Defaults to False.
+                             Defaults to False.
         include_hidden (bool): If True, includes hidden files and directories
-            (those starting with a dot). Defaults to False.
+                               (those starting with a dot). Defaults to False.
 
     Returns:
-        pd.DataFrame: A DataFrame where each row represents a file or
-            directory, with columns including 'path', 'ctime', 'mtime', and 'size'.
-            'ctime' and 'mtime' are in UTC.
+        pd.DataFrame: A DataFrame where each row represents a file or directory,
+                      with columns including 'path', 'ctime', 'mtime', and 'size'.
+                      'ctime' and 'mtime' are in UTC.
 
     Raises:
         FileNotFoundError: If the specified directory does not exist or is not a directory.

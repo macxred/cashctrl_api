@@ -9,6 +9,10 @@ import pandas as pd
 class CachedCashCtrlClient(CashCtrlClient):
     """A subclass of CashCtrlClient that caches the results of list_xy methods
     to avoid repeated API calls within a specified timeout.
+
+    Users are responsible for invalidating the cache if the data is changed.
+    Changes on the server are not reflected until the cache expires or is
+    invalidated.
     """
 
     def __init__(self, *args, cache_timeout: int = 300, **kwargs):
@@ -16,7 +20,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Args:
             cache_timeout (int, optional): Timeout for cache in seconds.
-                Defaults to 300 seconds.
+                                           Defaults to 300 seconds.
             *args: Variable length argument list for the parent class.
             **kwargs: Arbitrary keyword arguments for the parent class.
         """
@@ -91,7 +95,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
-                | {'number': 'Int64'} schema.
+                          | {'number': 'Int64'} schema.
         """
         if (
             self._account_categories_cache is None

@@ -38,12 +38,12 @@ def test_exception_when_not_successful():
     """Test exception handling for unsuccessful API calls."""
     cc_client = CashCtrlClient()
 
-    # Error message with field name (error['field'] is set)
+    # Error message with filed name (error['field'] is set)
     with pytest.raises(Exception) as e:
         cc_client.post("file/category/create.json")
     assert str(e.value) == "API call failed. name: This field cannot be empty."
 
-    # Error message without field name (error['field']=None)
+    # Error message without filed name (error['field']=None)
     with pytest.raises(Exception) as e:
         cc_client.post("person/create.json")
     assert str(e.value) == (

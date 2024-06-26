@@ -27,9 +27,9 @@ class CashCtrlClient:
 
         Args:
             organisation (str, optional): The sub-domain of the organization. Defaults to
-                the `CC_API_ORGANISATION` environment variable.
+                                          the `CC_API_ORGANISATION` environment variable.
             api_key (str, optional): API key for authenticating with the CashCtrl API.
-                Defaults to the `CC_API_KEY` environment variable.
+                                     Defaults to the `CC_API_KEY` environment variable.
         """
         self._api_key = api_key if api_key is not None else os.getenv("CC_API_KEY")
         organisation = (
@@ -153,7 +153,7 @@ class CashCtrlClient:
             file (str | Path): Path to the local file to upload.
             id (int | str | None, optional): ID of remote file to replace with new file.
             name (str | None, optional): The filename on the remote server;
-                defaults to the local file's base name.
+                                         defaults to the local file's base name.
             category (int | str | None, optional): ID of category the file is stored in.
             mime_type (str | None, optional): The file's MIME type; guessed if not provided.
 
@@ -279,7 +279,8 @@ class CashCtrlClient:
         Args:
             resource (str): Resource type ('account', 'file', etc.).
             target (Dict[str, int] | List[str]): Target category paths in Unix-like format.
-                Type of [str, int] is suitable only for 'account' resource and represent key-value
+                                                 Type of [str, int] is suitable only for 'account'
+                                                 resource and represent key-value
                 pairs of path and associated account number. Type of List[str] is suitable for the
                 rest of the resources and should contain just a list of paths in string format.
             delete (bool, optional): If True, deletes categories not present in the provided list.
