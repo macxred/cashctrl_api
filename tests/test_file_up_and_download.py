@@ -39,7 +39,7 @@ def test_upload_file_and_download(tmp_path) -> None:
         f.writelines(updated_content)
 
     # Re-upload using the same file ID
-    cc_client.upload_file(temp_file, name=f"{random_word(30)}.txt", file_id=file_id)
+    cc_client.upload_file(temp_file, name=f"{random_word(30)}.txt", id=file_id)
 
     # Re-download and verify updated content
     cc_client.download_file(id=file_id, path=download_path)

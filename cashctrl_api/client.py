@@ -147,7 +147,7 @@ class CashCtrlClient:
         mime_type: str | None = None,
     ) -> int:
         """Uploads a file to the server, marks it for persistent storage and,
-        if a remote file `file_id` is provided, replaces an existing file.
+        if a remote file `id` is provided, replaces an existing file.
 
         Args:
             file (str | Path): Path to the local file to upload.

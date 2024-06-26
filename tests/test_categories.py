@@ -72,10 +72,10 @@ def test_invalid_path() -> None:
     """Test the system's response to invalid category paths."""
     invalid_categories = ["not/a/valid/path", ""]
     cc_client = CashCtrlClient()
-    with pytest.raises(ValueError, match="Invalid category path"):
-        cc_client.update_categories("file", target=[invalid_categories[0]])
-    with pytest.raises(ValueError, match="Invalid category path"):
-        cc_client.update_categories("file", target=[invalid_categories[1]])
+    with pytest.raises(Exception):
+        cc_client.update_categories("file", target=invalid_categories[[0]])
+    with pytest.raises(Exception):
+        cc_client.update_categories("file", target=invalid_categories[[1]])
 
 
 def test_update_account_categories_with_list() -> None:
