@@ -1,15 +1,11 @@
-"""
-Unit tests for listing methods to have expected columns
-with CashCtrlClient.
-"""
+"""Unit tests for listing methods to have expected columns with CashCtrlClient."""
 
-import pandas as pd
 from cashctrl_api import CashCtrlClient, constants
+import pandas as pd
 
-# Test function with assertions to check the tax rates DataFrame
-def test_list_tax_rates_to_have_expected_columns():
-    """
-    Test that the DataFrame returned by CashCtrlClient contains all expected columns
+
+def test_list_tax_rates_to_have_expected_columns() -> None:
+    """Test that the DataFrame returned by CashCtrlClient contains all expected columns
     with the correct data types as specified in TAX_COLUMNS.
     """
     # Given: CashCtrlClient returns a DataFrame of tax rates
@@ -29,10 +25,9 @@ def test_list_tax_rates_to_have_expected_columns():
             f"but got '{actual_dtype}'."
         )
 
-# Test function to check list_accounts returns expected columns and data types
-def test_list_accounts_to_have_expected_columns():
-    """
-    Test that the DataFrame returned by CashCtrlClient's list_accounts contains all expected
+
+def test_list_accounts_to_have_expected_columns() -> None:
+    """Test that the DataFrame returned by CashCtrlClient's list_accounts contains all expected
     columns with the correct data types as specified in ACCOUNT_COLUMNS.
     """
     # Create the CashCtrlClient object and fetch the DataFrame
@@ -52,11 +47,10 @@ def test_list_accounts_to_have_expected_columns():
             f"but got '{actual_dtype}'."
         )
 
-# Test function to check list_journal_entries returns expected columns and data types
-def test_list_journal_entries_to_have_columns():
-    """
-    Test that the DataFrame returned by CashCtrlClient's list_journal_entries contains all expected
-    columns with the correct data types as specified in JOURNAL_ENTRIES.
+
+def test_list_journal_entries_to_have_columns() -> None:
+    """Test that the DataFrame returned by CashCtrlClient's list_journal_entries contains
+    all expected columns with the correct data types as specified in JOURNAL_ENTRIES.
     """
     # Create the CashCtrlClient object and fetch the DataFrame
     cc_client = CashCtrlClient()
