@@ -11,12 +11,6 @@ on:
 
 name: Lint with Flake8
 
-concurrency:
-  # Within the same concurrency group, run only one job at a time
-  # New jobs cancel existing pending jobs
-  group: CashCtrl-test-account
-  cancel-in-progress: false
-
 jobs:
   docker:
     runs-on: ubuntu-latest
