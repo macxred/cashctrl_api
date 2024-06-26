@@ -5,7 +5,10 @@ Module to interact with the REST API of the CashCtrl accounting service.
 import json
 import os
 import re
+import time
 from requests import request, put, Response, RequestException, HTTPError
+import requests.exceptions
+import urllib3.exceptions
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Dict, List
@@ -53,14 +56,28 @@ class CashCtrlClient:
 
         Raises:
             HTTPError: If the API request fails with non-200 status code.
+
+        This method will retry the request up to three times in case of
+        connection-related exceptions, waiting one second between retries.
         """
         def flatten(data):
             return {k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
                     for k, v in data.items()}
 
         url = f"{self._base_url}/{endpoint}"
-        response = request(method, url, auth=(self._api_key, ''),
-                           data=flatten(data), params=flatten(params))
+        retries = 3
+        for attempt in range(retries):
+            try:
+                response = request(method, url, auth=(self._api_key, ''),
+                                   data=flatten(data), params=flatten(params))
+                break
+            except (urllib3.exceptions.MaxRetryError,
+                    requests.exceptions.ConnectionError) as e:
+                attempt += 1
+                if attempt < retries:
+                    time.sleep(1)
+                else:
+                    raise e
         if response.status_code != 200:
             raise HTTPError("API request failed with status "
                             f"{response.status_code}: {response.text}")
