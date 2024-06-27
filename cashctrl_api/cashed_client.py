@@ -42,6 +42,24 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._files_cache: Optional[pd.DataFrame] = None
         self._files_cache_time: Optional[datetime] = None
 
+    @property
+    def cache_timeout(self) -> int:
+        """Gets the current cache timeout.
+
+        Returns:
+            int: The cache timeout in seconds.
+        """
+        return self._cache_timeout
+
+    @cache_timeout.setter
+    def cache_timeout(self, timeout: int) -> None:
+        """Sets a new cache timeout.
+
+        Args:
+            timeout (int): The new cache timeout in seconds.
+        """
+        self._cache_timeout = timeout
+
     # ----------------------------------------------------------------------
     # Helper Methods
 
@@ -79,6 +97,18 @@ class CachedCashCtrlClient(CashCtrlClient):
 
     # ----------------------------------------------------------------------
     # File Operations
+
+    def list_files(self) -> pd.DataFrame:
+        """List remote files with their attributes. Add the files' hierarchical
+        position in the category tree in Unix-like filepath format.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
+        """
+        if self._files_cache is None or self._is_expired(self._files_cache_time):
+            self._files_cache = super().list_files()
+            self._files_cache_time = datetime.now()
+        return self._files_cache
 
     def file_id_to_path(self, id: int, allow_missing: bool = False) -> Optional[str]:
         """Retrieve the file path corresponding to a given id.
@@ -298,6 +328,62 @@ class CachedCashCtrlClient(CashCtrlClient):
                 raise ValueError(f"No currency found for account: {account}")
         elif len(result) > 1:
             raise ValueError(f"Multiple currencies found for account: {account}")
+        else:
+            return result.item()
+
+    # ----------------------------------------------------------------------
+    # Currencies
+
+    def list_currencies(self) -> pd.DataFrame:
+        """Lists remote currencies with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with currencies.
+        """
+        if self._currencies_cache is None or self._is_expired(self._currencies_cache_time):
+            self._currencies_cache = pd.DataFrame(self.get("currency/list.json")["data"])
+            self._currencies_cache_time = datetime.now()
+        return self._currencies_cache
+
+    def currency_from_id(self, id: int) -> str:
+        """Retrieve the currency corresponding to a given id.
+
+        Args:
+            id (int): The id of the currency.
+
+        Returns:
+            str: The currency name associated with the provided id.
+
+        Raises:
+            ValueError: If the currency id does not exist or is duplicated.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["id"] == id, "text"]
+        if result.empty:
+            raise ValueError(f"No currency found for id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple currencies found for id: {id}")
+        else:
+            return result.item()
+
+    def currency_to_id(self, name: str) -> int:
+        """Retrieve the id corresponding to a given currency name.
+
+        Args:
+            text (srt): The currency name.
+
+        Returns:
+            int: The id associated with the provided currency name.
+
+        Raises:
+            ValueError: If the currency does not exist or is duplicated.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["text"] == name, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for currency: {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for currency: {name}")
         else:
             return result.item()
 

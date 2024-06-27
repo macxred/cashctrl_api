@@ -11,7 +11,7 @@ import pandas as pd
 from requests import HTTPError, put, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
-from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
+from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
 from .enforce_dtypes import enforce_dtypes
 from .list_directory import list_directory
 
@@ -223,6 +223,26 @@ class CashCtrlClient:
         response = self.request("GET", endpoint="file/get", params={"id": id})
         with open(Path(path).expanduser(), "wb") as file:
             file.write(response.content)
+
+    def list_files(self) -> pd.DataFrame:
+        """List remote files with their attributes. Add the files' hierarchical
+        position in the category tree in Unix-like filepath format.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
+        """
+        files = pd.DataFrame(self.get("file/list.json")["data"])
+        columns_except_path = {
+            key: value for key, value in FILE_COLUMNS.items() if key != "path"
+        }
+        df = enforce_dtypes(files, columns_except_path)
+        if len(df) > 0:
+            categories = self.list_categories("file")[["path", "id"]]
+            categories = categories.rename(columns={"id": "categoryId"})
+            df = df.merge(categories, on="categoryId", how="left")
+            df["path"] = df["path"].fillna("") + "/" + df["name"]
+        df = enforce_dtypes(df, FILE_COLUMNS)
+        return df.sort_values("path")
 
     def mirror_directory(
         self,
