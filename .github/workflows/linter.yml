@@ -9,7 +9,7 @@ on:
   # Manually triggered
   workflow_dispatch:
 
-name: Lint with Flake8
+name: Lint
 
 jobs:
   docker:
