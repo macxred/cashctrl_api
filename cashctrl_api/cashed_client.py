@@ -1,52 +1,47 @@
-"""
-Module to extend the CashCtrlClient class with caching capabilities.
-"""
+"""Module to extend the CashCtrlClient class with caching capabilities."""
 
-import inspect
-from pathlib import Path
-import time
 from datetime import datetime, timedelta
-import pandas as pd
-from typing import Dict, List, Optional
+from typing import Optional
 from cashctrl_api import CashCtrlClient
+import pandas as pd
+
 
 class CachedCashCtrlClient(CashCtrlClient):
-    """
-    A subclass of CashCtrlClient that caches the results of list_xy methods to
-    avoid repeated API calls within a specified timeout.
+    """A subclass of CashCtrlClient that caches the results of list_xy methods
+    to avoid repeated API calls within a specified timeout.
 
     Users are responsible for invalidating the cache if the data is changed.
     Changes on the server are not reflected until the cache expires or is
     invalidated.
     """
+
     def __init__(self, *args, cache_timeout: int = 300, **kwargs):
-        """
-        Initializes the cached client with an optional cache timeout.
+        """Initializes the cached client with an optional cache timeout.
 
         Args:
-            cache_timeout (int, optional): Timeout for cache in seconds. Defaults to 300 seconds.
+            cache_timeout (int, optional): Timeout for cache in seconds.
+                                           Defaults to 300 seconds.
             *args: Variable length argument list for the parent class.
             **kwargs: Arbitrary keyword arguments for the parent class.
         """
         super().__init__(*args, **kwargs)
         self._cache_timeout = cache_timeout
-        self._accounts_cache: pd.DataFrame | None = None
-        self._accounts_cache_time: datetime | None = None
-        self._currencies_cache: pd.DataFrame | None = None
-        self._currencies_cache_time: datetime | None = None
-        self._account_categories_cache: pd.DataFrame | None = None
-        self._account_categories_cache_time: datetime | None = None
-        self._journal_cache: pd.DataFrame | None = None
-        self._journal_cache_time: datetime | None = None
-        self._tax_rates_cache: pd.DataFrame | None = None
-        self._tax_rates_cache_time: datetime | None = None
-        self._files_cache: pd.DataFrame | None = None
-        self._files_cache_time: datetime | None = None
+        self._accounts_cache: Optional[pd.DataFrame] = None
+        self._accounts_cache_time: Optional[datetime] = None
+        self._currencies_cache: Optional[pd.DataFrame] = None
+        self._currencies_cache_time: Optional[datetime] = None
+        self._account_categories_cache: Optional[pd.DataFrame] = None
+        self._account_categories_cache_time: Optional[datetime] = None
+        self._journal_cache: Optional[pd.DataFrame] = None
+        self._journal_cache_time: Optional[datetime] = None
+        self._tax_rates_cache: Optional[pd.DataFrame] = None
+        self._tax_rates_cache_time: Optional[datetime] = None
+        self._files_cache: Optional[pd.DataFrame] = None
+        self._files_cache_time: Optional[datetime] = None
 
     @property
     def cache_timeout(self) -> int:
-        """
-        Gets the current cache timeout.
+        """Gets the current cache timeout.
 
         Returns:
             int: The cache timeout in seconds.
@@ -55,8 +50,7 @@ class CachedCashCtrlClient(CashCtrlClient):
 
     @cache_timeout.setter
     def cache_timeout(self, timeout: int) -> None:
-        """
-        Sets a new cache timeout.
+        """Sets a new cache timeout.
 
         Args:
             timeout (int): The new cache timeout in seconds.
@@ -64,8 +58,7 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._cache_timeout = timeout
 
     def list_accounts(self) -> pd.DataFrame:
-        """
-        Lists remote accounts with their attributes, and caches the result.
+        """Lists remote accounts with their attributes, and caches the result.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
@@ -76,8 +69,7 @@ class CachedCashCtrlClient(CashCtrlClient):
         return self._accounts_cache
 
     def list_journal_entries(self) -> pd.DataFrame:
-        """
-        Lists remote journal_entries with their attributes, and caches the result.
+        """Lists remote journal entries with their attributes, and caches the result.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
@@ -88,33 +80,35 @@ class CachedCashCtrlClient(CashCtrlClient):
         return self._journal_cache
 
     def list_currencies(self) -> pd.DataFrame:
-        """
-        Lists remote currencies with their attributes, and caches the result.
+        """Lists remote currencies with their attributes, and caches the result.
 
         Returns:
-            pd.DataFrame: A DataFrame with currencies
+            pd.DataFrame: A DataFrame with currencies.
         """
         if self._currencies_cache is None or self._is_expired(self._currencies_cache_time):
-            # TODO: Implement a type-consistent `list_currencies` method in CashCtrlClient
-            self._currencies_cache = pd.DataFrame(self.get("currency/list.json")['data'])
+            self._currencies_cache = pd.DataFrame(self.get("currency/list.json")["data"])
             self._currencies_cache_time = datetime.now()
         return self._currencies_cache
 
     def list_account_categories(self) -> pd.DataFrame:
-        """
-        Lists remote account categories with their attributes, and caches the result.
+        """Lists remote account categories with their attributes, and caches the result.
 
         Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS | {'number': 'Int64'} schema.
+            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
+                          | {'number': 'Int64'} schema.
         """
-        if self._account_categories_cache is None or self._is_expired(self._account_categories_cache_time):
-            self._account_categories_cache = self.list_categories('account', include_system=True)
+        if (
+            self._account_categories_cache is None
+            or self._is_expired(self._account_categories_cache_time)
+        ):
+            self._account_categories_cache = self.list_categories(
+                "account", include_system=True
+            )
             self._account_categories_cache_time = datetime.now()
         return self._account_categories_cache
 
     def list_tax_rates(self) -> pd.DataFrame:
-        """
-        Lists remote tax rates with their attributes, and caches the result.
+        """Lists remote tax rates with their attributes, and caches the result.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
@@ -125,8 +119,7 @@ class CachedCashCtrlClient(CashCtrlClient):
         return self._tax_rates_cache
 
     def list_files(self) -> pd.DataFrame:
-        """
-        List remote files with their attributes. Add the files' hierarchical
+        """List remote files with their attributes. Add the files' hierarchical
         position in the category tree in Unix-like filepath format.
 
         Returns:
@@ -137,18 +130,17 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._files_cache_time = datetime.now()
         return self._files_cache
 
-    def file_id_to_path(self, id: int, allow_missing: bool = False) -> str | None:
-        """
-        Retrieve the file path corresponding to a given id.
+    def file_id_to_path(self, id: int, allow_missing: bool = False) -> Optional[str]:
+        """Retrieve the file path corresponding to a given id.
 
         Returns:
-            str | none: The file path associated with the provided id
+            str | None: The file path associated with the provided id
                         or None if allow_missing is True and there is no such file path.
         """
         df = self.list_files()
-        result = df.loc[df['id'] == id, 'path']
+        result = df.loc[df["id"] == id, "path"]
         if result.empty:
-            if  allow_missing:
+            if allow_missing:
                 return None
             else:
                 raise ValueError(f"No path found for id: {id}")
@@ -157,18 +149,17 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def file_path_to_id(self, path: str, allow_missing: bool = False) -> int | None:
-        """
-        Retrieve the file id corresponding to a given file path.
+    def file_path_to_id(self, path: str, allow_missing: bool = False) -> Optional[int]:
+        """Retrieve the file id corresponding to a given file path.
 
         Returns:
-            int | none: The id associated with the file path
+            int | None: The id associated with the file path
                         or None if allow_missing is True and there is no such file id.
         """
         df = self.list_files()
-        result = df.loc[df['path'] == path, 'id']
+        result = df.loc[df["path"] == path, "id"]
         if result.empty:
-            if  allow_missing:
+            if allow_missing:
                 return None
             else:
                 raise ValueError(f"No id found for path: {path}")
@@ -177,9 +168,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def account_from_id(self, id: int, allow_missing = False) -> int | None:
-        """
-        Retrieve the account number corresponding to a given id.
+    def account_from_id(self, id: int, allow_missing: bool = False) -> Optional[int]:
+        """Retrieve the account number corresponding to a given id.
 
         Args:
             id (int): The id of the account.
@@ -187,16 +177,17 @@ class CachedCashCtrlClient(CashCtrlClient):
                                      Otherwise raise a ValueError.
 
         Returns:
-            int | none: The account number associated with the provided id
+            int | None: The account number associated with the provided id
                         or None if allow_missing is True and there is no such account.
 
         Raises:
-            ValueError: If the id does not exist and `allow_missing=False`, or if the id is duplicated.
+            ValueError: If the id does not exist and allow_missing=False,
+            or if the id is duplicated.
         """
         df = self.list_accounts()
-        result = df.loc[df['id'] == id, 'number']
+        result = df.loc[df["id"] == id, "number"]
         if result.empty:
-            if  allow_missing:
+            if allow_missing:
                 return None
             else:
                 raise ValueError(f"No account found for id {id}")
@@ -205,9 +196,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def account_to_id(self, account: int, allow_missing = False) -> int | None:
-        """
-        Retrieve the id corresponding to a given account number.
+    def account_to_id(self, account: int, allow_missing: bool = False) -> Optional[int]:
+        """Retrieve the id corresponding to a given account number.
 
         Args:
             account (int): The account number.
@@ -219,11 +209,11 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such account.
 
         Raises:
-            ValueError: If the account number does not exist and `allow_missing=False`,
+            ValueError: If the account number does not exist and allow_missing=False,
                         or if the number is duplicated.
         """
         df = self.list_accounts()
-        result = df.loc[df['number'] == account, 'id']
+        result = df.loc[df["number"] == account, "id"]
         if result.empty:
             if allow_missing:
                 return None
@@ -234,9 +224,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def account_to_currency(self, account: int, allow_missing = False) -> str | None:
-        """
-        Retrieve the account currency corresponding to a given account number.
+    def account_to_currency(self, account: int, allow_missing: bool = False) -> Optional[str]:
+        """Retrieve the account currency corresponding to a given account number.
 
         Args:
             account (int): The account number.
@@ -248,11 +237,11 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such account.
 
         Raises:
-            ValueError: If the account number does not exist and `allow_missing=False`,
+            ValueError: If the account number does not exist and allow_missing=False,
                         or if the number is duplicated.
         """
         df = self.list_accounts()
-        result = df.loc[df['number'] == account, 'currencyCode']
+        result = df.loc[df["number"] == account, "currencyCode"]
         if result.empty:
             if allow_missing:
                 return None
@@ -264,8 +253,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             return result.item()
 
     def currency_from_id(self, id: int) -> str:
-        """
-        Retrieve the currency corresponding to a given id.
+        """Retrieve the currency corresponding to a given id.
 
         Args:
             id (int): The id of the currency.
@@ -277,7 +265,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             ValueError: If the currency id does not exist or is duplicated.
         """
         df = self.list_currencies()
-        result = df.loc[df['id'] == id, 'text']
+        result = df.loc[df["id"] == id, "text"]
         if result.empty:
             raise ValueError(f"No currency found for id: {id}")
         elif len(result) > 1:
@@ -286,8 +274,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             return result.item()
 
     def currency_to_id(self, name: str) -> int:
-        """
-        Retrieve the id corresponding to a given currency name.
+        """Retrieve the id corresponding to a given currency name.
 
         Args:
             text (srt): The currency name.
@@ -299,7 +286,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             ValueError: If the currency does not exist or is duplicated.
         """
         df = self.list_currencies()
-        result = df.loc[df['text'] == name, 'id']
+        result = df.loc[df["text"] == name, "id"]
         if result.empty:
             raise ValueError(f"No id found for currency: {name}")
         elif len(result) > 1:
@@ -308,8 +295,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             return result.item()
 
     def account_category_to_id(self, path: str) -> int:
-        """
-        Retrieve the id corresponding to a given category path.
+        """Retrieve the id corresponding to a given category path.
 
         Args:
             path (str): The path of category.
@@ -321,7 +307,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             ValueError: If the account category path does not exist or is duplicated.
         """
         df = self.list_account_categories()
-        result = df.loc[df['path'] == path, 'id']
+        result = df.loc[df["path"] == path, "id"]
         if result.empty:
             raise ValueError(f"No id found for account category path: {path}")
         elif len(result) > 1:
@@ -330,8 +316,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             return result.item()
 
     def account_category_from_id(self, id: int) -> int:
-        """
-        Retrieve the path corresponding to a given account category id.
+        """Retrieve the path corresponding to a given account category id.
 
         Args:
             id (int): The id of category path.
@@ -343,7 +328,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             ValueError: If the account category id does not exist or is duplicated.
         """
         df = self.list_account_categories()
-        result = df.loc[df['id'] == id, 'path']
+        result = df.loc[df["id"] == id, "path"]
         if result.empty:
             raise ValueError(f"No path found for account category id: {id}")
         elif len(result) > 1:
@@ -351,9 +336,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def tax_code_from_id(self, id: int, allow_missing = False) -> str | None:
-        """
-        Retrieve the tax code name corresponding to a given id.
+    def tax_code_from_id(self, id: int, allow_missing: bool = False) -> Optional[str]:
+        """Retrieve the tax code name corresponding to a given id.
 
         Args:
             id (int): The id of the tax code.
@@ -365,11 +349,11 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such tax code.
 
         Raises:
-            ValueError: If the tax id does not exist and `allow_missing=False`,
+            ValueError: If the tax id does not exist and allow_missing=False,
                         or if the id is duplicated.
         """
         df = self.list_tax_rates()
-        result = df.loc[df['id'] == id, 'name']
+        result = df.loc[df["id"] == id, "name"]
         if result.empty:
             if allow_missing:
                 return None
@@ -380,9 +364,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         else:
             return result.item()
 
-    def tax_code_to_id(self, name: str, allow_missing = False) -> int | None:
-        """
-        Retrieve the id corresponding to a given tax code name.
+    def tax_code_to_id(self, name: str, allow_missing: bool = False) -> Optional[int]:
+        """Retrieve the id corresponding to a given tax code name.
 
         Args:
             name (str): The tax code name.
@@ -394,11 +377,11 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such tax code.
 
         Raises:
-            ValueError: If the tax code does not exist and `allow_missing=False`,
+            ValueError: If the tax code does not exist and allow_missing=False,
                         or if the tax code is duplicated.
         """
         df = self.list_tax_rates()
-        result = df.loc[df['name'] == name, 'id']
+        result = df.loc[df["name"] == name, "id"]
         if result.empty:
             if allow_missing:
                 return None
@@ -419,56 +402,43 @@ class CachedCashCtrlClient(CashCtrlClient):
 
     def update_categories(self, resource: str, *args, **kwargs):
         super().update_categories(resource, *args, **kwargs)
-        if resource == 'file':
+        if resource == "file":
             self.invalidate_files_cache()
-        elif resource == 'account':
+        elif resource == "account":
             self.invalidate_account_categories_cache()
 
     def invalidate_accounts_cache(self) -> None:
-        """
-        Invalidates the cached accounts data.
-        """
+        """Invalidates the cached accounts data."""
         self._accounts_cache = None
         self._accounts_cache_time = None
 
     def invalidate_tax_rates_cache(self) -> None:
-        """
-        Invalidates the cached tax rates data.
-        """
+        """Invalidates the cached tax rates data."""
         self._tax_rates_cache = None
         self._tax_rates_cache_time = None
 
     def invalidate_currencies_cache(self) -> None:
-        """
-        Invalidates the cached currencies data.
-        """
+        """Invalidates the cached currencies data."""
         self._currencies_cache = None
         self._currencies_cache_time = None
 
     def invalidate_account_categories_cache(self) -> None:
-        """
-        Invalidates the cached account categories data.
-        """
+        """Invalidates the cached account categories data."""
         self._account_categories_cache = None
         self._account_categories_cache_time = None
 
     def invalidate_journal_cache(self) -> None:
-        """
-        Invalidates the cached journal entries data.
-        """
+        """Invalidates the cached journal entries data."""
         self._journal_cache = None
         self._journal_cache_time = None
 
     def invalidate_files_cache(self) -> None:
-        """
-        Invalidates the cached files data.
-        """
+        """Invalidates the cached files data."""
         self._files_cache = None
         self._files_cache_time = None
 
-    def _is_expired(self, cache_time: datetime | None) -> bool:
-        """
-        Checks if the cache has expired based on the cache timeout.
+    def _is_expired(self, cache_time: Optional[datetime]) -> bool:
+        """Checks if the cache has expired based on the cache timeout.
 
         Args:
             cache_time (datetime | None): The timestamp when the cache was last updated.
