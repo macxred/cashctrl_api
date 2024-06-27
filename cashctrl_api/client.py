@@ -184,7 +184,7 @@ class CashCtrlClient:
 
         with open(path, "rb") as file:
             headers = {"Content-Type": "application/octet-stream"}
-            response = put(write_url, file, headers=headers)
+            response = put(write_url, file, headers=headers, timeout=60)
         if response.status_code != 200:
             raise HTTPError(f"File upload failed: {response.reason}.")
 

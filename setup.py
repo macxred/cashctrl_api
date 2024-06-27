@@ -14,7 +14,8 @@ setup(
             "flake8",
             "flake8-import-order",
             "flake8-docstrings",
-            "flake8-bugbear"
+            "flake8-bugbear",
+            "bandit"
         ]
     }
 )
