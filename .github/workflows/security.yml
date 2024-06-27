@@ -50,7 +50,7 @@ jobs:
         run: python setup.py develop
 
       - name: Run Bandit
-        run: bandit -r  -ll
+        run: bandit -r cashctrl_api -ll
 
       - name: Run Safety
         run: safety check -r setup.py
