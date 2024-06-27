@@ -11,7 +11,7 @@ import pandas as pd
 from requests import HTTPError, put, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
-from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
+from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
 from .enforce_dtypes import enforce_dtypes
 from .list_directory import list_directory
 
@@ -21,6 +21,9 @@ class CashCtrlClient:
 
     See README on https://github.com/macxred/cashctrl_api for overview and usage examples.
     """
+
+    # ----------------------------------------------------------------------
+    # Constructors
 
     def __init__(self, organisation: str = None, api_key: str = None):
         """Initializes the API client with the organization's domain and API key.
@@ -36,6 +39,9 @@ class CashCtrlClient:
             organisation if organisation is not None else os.getenv("CC_API_ORGANISATION")
         )
         self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
+
+    # ----------------------------------------------------------------------
+    # Helper Methods
 
     def request(
         self, method: str, endpoint: str, data: dict = None, params: dict = None
@@ -122,6 +128,9 @@ class CashCtrlClient:
             raise RequestException(f"API call failed. {msg}")
         return result
 
+    # ----------------------------------------------------------------------
+    # API Requests
+
     def get(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
         """Send GET request. See json_request for args and return value."""
         return self.json_request("GET", endpoint, data=data, params=params)
@@ -137,6 +146,9 @@ class CashCtrlClient:
     def delete(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
         """Send DELETE request. See json_request for args and return value."""
         return self.json_request("DELETE", endpoint, data=data, params=params)
+
+    # ----------------------------------------------------------------------
+    # File Operations
 
     def upload_file(
         self,
@@ -211,6 +223,124 @@ class CashCtrlClient:
         response = self.request("GET", endpoint="file/get", params={"id": id})
         with open(Path(path).expanduser(), "wb") as file:
             file.write(response.content)
+
+    def mirror_directory(
+        self,
+        directory: str | Path,
+        delete_files: bool = False,
+        delete_categories: bool = False,
+    ):
+        """Recursively mirrors a local directory on the CashCtrl server.
+
+        Ensures that the remote file system reflects the state of the local
+        directory, and that local sub-folders are mapped to remote categories.
+        The method creates, updates, and optionally deletes files and
+        categories (folders) on the server to match the local structure.
+
+        Args:
+            directory (str | Path): Path of the local directory to mirror.
+            delete_files (bool, optional): If True, deletes remote files without
+                                           a corresponding local file. Also empties
+                                           the recycle bin to release references
+                                           and allow for category deletion.
+            delete_categories (bool, optional): If True, deletes unused categories
+                                                (folders) on the server.
+        """
+        local_files = list_directory(directory, recursive=True, exclude_dirs=True)
+        local_files["remote_path"] = "/" + local_files["path"]
+        local_files["remote_category"] = [
+            Path(p).parent.as_posix() for p in local_files["remote_path"]
+        ]
+        local_files["remote_category"] = local_files["remote_category"].astype(pd.StringDtype())
+        remote_files = self.list_files()
+
+        if delete_files:
+            to_delete = remote_files["path"].duplicated(keep="first") | ~remote_files[
+                "path"
+            ].isin(local_files["remote_path"])
+            if to_delete.any():
+                ids = ",".join(remote_files.loc[to_delete, "id"].astype(str))
+                params = {"ids": ids, "force": True}
+                self.post("file/delete.json", params=params)
+                remote_files = remote_files.loc[~to_delete, :]
+            # Empty recycle bin to release references before category deletion
+            self.post("file/empty_archive.json")
+
+        self.update_categories(
+            "file", target=local_files["remote_category"], delete=delete_categories
+        )
+        categories = self.list_categories("file")
+        category_map = dict(zip(categories["path"], categories["id"]))
+        category_map["/"] = None
+
+        if remote_files["path"].duplicated().any():
+            raise ValueError(
+                "Some remote files are duplicated. Either use mirror_files(..., delete_files=True) "
+                "or manually remove duplicates."
+            )
+        cols = {"path": "remote_path", "lastUpdated": "remote_modified_time"}
+        df = local_files.merge(
+            remote_files[["path", "lastUpdated", "id"]].rename(columns=cols),
+            on="remote_path",
+            how="left",
+        )
+        local_file_is_newer = (df["mtime"] > df["remote_modified_time"]).fillna(False)
+        to_update = df.loc[local_file_is_newer, :]
+        for local_file, remote_category, file_id in zip(
+            to_update["path"], to_update["remote_category"], to_update["id"]
+        ):
+            self.upload_file(
+                Path(directory) / local_file, category=category_map[remote_category], id=file_id
+            )
+
+        to_upload = local_files.loc[
+            ~local_files["remote_path"].isin(remote_files["path"]), :
+        ]
+        for local_file, remote_category in zip(
+            to_upload["path"], to_upload["remote_category"]
+        ):
+            self.upload_file(
+                Path(directory) / local_file, category=category_map[remote_category]
+            )
+
+    # ----------------------------------------------------------------------
+    # Tax Rates
+
+    def list_tax_rates(self) -> pd.DataFrame:
+        """List remote tax rates with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
+        """
+        tax_rates = pd.DataFrame(self.get("tax/list.json")["data"])
+        df = enforce_dtypes(tax_rates, TAX_COLUMNS)
+        return df.sort_values("name")
+
+    # ----------------------------------------------------------------------
+    # Accounts
+
+    def list_accounts(self) -> pd.DataFrame:
+        """List remote accounts with their attributes, and Unix-style path
+        representation of their hierarchical position in the category tree.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
+        """
+        accounts = pd.DataFrame(self.get("account/list.json")["data"])
+        columns_except_path = {
+            key: value for key, value in ACCOUNT_COLUMNS.items() if key != "path"
+        }
+        df = enforce_dtypes(accounts, columns_except_path)
+        if len(df) > 0:
+            categories = self.list_categories("account", include_system=True)[["path", "id"]]
+            categories = categories.rename(columns={"id": "categoryId"})
+            df = df.merge(categories, on="categoryId", how="left")
+            df["path"] = df["path"].fillna("")
+        df = enforce_dtypes(df, ACCOUNT_COLUMNS)
+        return df.sort_values("number")
+
+    # ----------------------------------------------------------------------
+    # Categories
 
     def list_categories(
         self, resource: str, include_system: bool = False
@@ -362,134 +492,8 @@ class CashCtrlClient:
                     response = self.post(f"{resource}/category/create.json", params=params)
                     categories[node_path] = response["insertId"]
 
-    def mirror_directory(
-        self,
-        directory: str | Path,
-        delete_files: bool = False,
-        delete_categories: bool = False,
-    ):
-        """Recursively mirrors a local directory on the CashCtrl server.
-
-        Ensures that the remote file system reflects the state of the local
-        directory, and that local sub-folders are mapped to remote categories.
-        The method creates, updates, and optionally deletes files and
-        categories (folders) on the server to match the local structure.
-
-        Args:
-            directory (str | Path): Path of the local directory to mirror.
-            delete_files (bool, optional): If True, deletes remote files without
-                                           a corresponding local file. Also empties
-                                           the recycle bin to release references
-                                           and allow for category deletion.
-            delete_categories (bool, optional): If True, deletes unused categories
-                                                (folders) on the server.
-        """
-        local_files = list_directory(directory, recursive=True, exclude_dirs=True)
-        local_files["remote_path"] = "/" + local_files["path"]
-        local_files["remote_category"] = [
-            Path(p).parent.as_posix() for p in local_files["remote_path"]
-        ]
-        local_files["remote_category"] = local_files["remote_category"].astype(pd.StringDtype())
-        remote_files = self.list_files()
-
-        if delete_files:
-            to_delete = remote_files["path"].duplicated(keep="first") | ~remote_files[
-                "path"
-            ].isin(local_files["remote_path"])
-            if to_delete.any():
-                ids = ",".join(remote_files.loc[to_delete, "id"].astype(str))
-                params = {"ids": ids, "force": True}
-                self.post("file/delete.json", params=params)
-                remote_files = remote_files.loc[~to_delete, :]
-            # Empty recycle bin to release references before category deletion
-            self.post("file/empty_archive.json")
-
-        self.update_categories(
-            "file", target=local_files["remote_category"], delete=delete_categories
-        )
-        categories = self.list_categories("file")
-        category_map = dict(zip(categories["path"], categories["id"]))
-        category_map["/"] = None
-
-        if remote_files["path"].duplicated().any():
-            raise ValueError(
-                "Some remote files are duplicated. Either use mirror_files(..., delete_files=True) "
-                "or manually remove duplicates."
-            )
-        cols = {"path": "remote_path", "lastUpdated": "remote_modified_time"}
-        df = local_files.merge(
-            remote_files[["path", "lastUpdated", "id"]].rename(columns=cols),
-            on="remote_path",
-            how="left",
-        )
-        local_file_is_newer = (df["mtime"] > df["remote_modified_time"]).fillna(False)
-        to_update = df.loc[local_file_is_newer, :]
-        for local_file, remote_category, file_id in zip(
-            to_update["path"], to_update["remote_category"], to_update["id"]
-        ):
-            self.upload_file(
-                Path(directory) / local_file, category=category_map[remote_category], id=file_id
-            )
-
-        to_upload = local_files.loc[
-            ~local_files["remote_path"].isin(remote_files["path"]), :
-        ]
-        for local_file, remote_category in zip(
-            to_upload["path"], to_upload["remote_category"]
-        ):
-            self.upload_file(
-                Path(directory) / local_file, category=category_map[remote_category]
-            )
-
-    def list_files(self) -> pd.DataFrame:
-        """List remote files with their attributes. Add the files' hierarchical
-        position in the category tree in Unix-like filepath format.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
-        """
-        files = pd.DataFrame(self.get("file/list.json")["data"])
-        columns_except_path = {
-            key: value for key, value in FILE_COLUMNS.items() if key != "path"
-        }
-        df = enforce_dtypes(files, columns_except_path)
-        if len(df) > 0:
-            categories = self.list_categories("file")[["path", "id"]]
-            categories = categories.rename(columns={"id": "categoryId"})
-            df = df.merge(categories, on="categoryId", how="left")
-            df["path"] = df["path"].fillna("") + "/" + df["name"]
-        df = enforce_dtypes(df, FILE_COLUMNS)
-        return df.sort_values("path")
-
-    def list_tax_rates(self) -> pd.DataFrame:
-        """List remote tax rates with their attributes.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
-        """
-        tax_rates = pd.DataFrame(self.get("tax/list.json")["data"])
-        df = enforce_dtypes(tax_rates, TAX_COLUMNS)
-        return df.sort_values("name")
-
-    def list_accounts(self) -> pd.DataFrame:
-        """List remote accounts with their attributes, and Unix-style path
-        representation of their hierarchical position in the category tree.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
-        """
-        accounts = pd.DataFrame(self.get("account/list.json")["data"])
-        columns_except_path = {
-            key: value for key, value in ACCOUNT_COLUMNS.items() if key != "path"
-        }
-        df = enforce_dtypes(accounts, columns_except_path)
-        if len(df) > 0:
-            categories = self.list_categories("account", include_system=True)[["path", "id"]]
-            categories = categories.rename(columns={"id": "categoryId"})
-            df = df.merge(categories, on="categoryId", how="left")
-            df["path"] = df["path"].fillna("")
-        df = enforce_dtypes(df, ACCOUNT_COLUMNS)
-        return df.sort_values("number")
+    # ----------------------------------------------------------------------
+    # Ledger
 
     def list_journal_entries(self) -> pd.DataFrame:
         """List remote journal entries with their attributes.
