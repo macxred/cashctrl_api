@@ -16,7 +16,7 @@ class CachedCashCtrlClient(CashCtrlClient):
     """
 
     # ----------------------------------------------------------------------
-    # Constructors
+    # Constructor
 
     def __init__(self, *args, cache_timeout: int = 300, **kwargs):
         """Initializes the cached client with an optional cache timeout.
@@ -76,6 +76,36 @@ class CachedCashCtrlClient(CashCtrlClient):
             return True
         return (datetime.now() - cache_time) > timedelta(seconds=self._cache_timeout)
 
+    def invalidate_accounts_cache(self) -> None:
+        """Invalidates the cached accounts data."""
+        self._accounts_cache = None
+        self._accounts_cache_time = None
+
+    def invalidate_tax_rates_cache(self) -> None:
+        """Invalidates the cached tax rates data."""
+        self._tax_rates_cache = None
+        self._tax_rates_cache_time = None
+
+    def invalidate_currencies_cache(self) -> None:
+        """Invalidates the cached currencies data."""
+        self._currencies_cache = None
+        self._currencies_cache_time = None
+
+    def invalidate_account_categories_cache(self) -> None:
+        """Invalidates the cached account categories data."""
+        self._account_categories_cache = None
+        self._account_categories_cache_time = None
+
+    def invalidate_journal_cache(self) -> None:
+        """Invalidates the cached journal entries data."""
+        self._journal_cache = None
+        self._journal_cache_time = None
+
+    def invalidate_files_cache(self) -> None:
+        """Invalidates the cached files data."""
+        self._files_cache = None
+        self._files_cache_time = None
+
     # ----------------------------------------------------------------------
     # API Requests
 
@@ -94,6 +124,75 @@ class CachedCashCtrlClient(CashCtrlClient):
     def delete(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
         """Send DELETE request. See json_request for args and return value."""
         return self.json_request("DELETE", endpoint, data=data, params=params)
+
+    # ----------------------------------------------------------------------
+    # Categories
+
+    def list_account_categories(self) -> pd.DataFrame:
+        """Lists remote account categories with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
+                          | {'number': 'Int64'} schema.
+        """
+        if (
+            self._account_categories_cache is None
+            or self._is_expired(self._account_categories_cache_time)
+        ):
+            self._account_categories_cache = self.list_categories(
+                "account", include_system=True
+            )
+            self._account_categories_cache_time = datetime.now()
+        return self._account_categories_cache
+
+    def account_category_to_id(self, path: str) -> int:
+        """Retrieve the id corresponding to a given category path.
+
+        Args:
+            path (str): The path of category.
+
+        Returns:
+            int: The id associated with the provided category path.
+
+        Raises:
+            ValueError: If the account category path does not exist or is duplicated.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["path"] == path, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for account category path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for category path: {path}")
+        else:
+            return result.item()
+
+    def account_category_from_id(self, id: int) -> int:
+        """Retrieve the path corresponding to a given account category id.
+
+        Args:
+            id (int): The id of category path.
+
+        Returns:
+            path: The path associated with the provided account category id.
+
+        Raises:
+            ValueError: If the account category id does not exist or is duplicated.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["id"] == id, "path"]
+        if result.empty:
+            raise ValueError(f"No path found for account category id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple paths found for account category id: {id}")
+        else:
+            return result.item()
+
+    def update_categories(self, resource: str, *args, **kwargs):
+        super().update_categories(resource, *args, **kwargs)
+        if resource == "file":
+            self.invalidate_files_cache()
+        elif resource == "account":
+            self.invalidate_account_categories_cache()
 
     # ----------------------------------------------------------------------
     # File Operations
@@ -155,13 +254,6 @@ class CachedCashCtrlClient(CashCtrlClient):
     def upload_file(self, *args, **kwargs) -> int:
         super().upload_file(*args, **kwargs)
         self.invalidate_files_cache()
-
-    def update_categories(self, resource: str, *args, **kwargs):
-        super().update_categories(resource, *args, **kwargs)
-        if resource == "file":
-            self.invalidate_files_cache()
-        elif resource == "account":
-            self.invalidate_account_categories_cache()
 
     # ----------------------------------------------------------------------
     # Tax Rates
@@ -388,68 +480,6 @@ class CachedCashCtrlClient(CashCtrlClient):
             return result.item()
 
     # ----------------------------------------------------------------------
-    # Categories
-
-    def list_account_categories(self) -> pd.DataFrame:
-        """Lists remote account categories with their attributes, and caches the result.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
-                          | {'number': 'Int64'} schema.
-        """
-        if (
-            self._account_categories_cache is None
-            or self._is_expired(self._account_categories_cache_time)
-        ):
-            self._account_categories_cache = self.list_categories(
-                "account", include_system=True
-            )
-            self._account_categories_cache_time = datetime.now()
-        return self._account_categories_cache
-
-    def account_category_to_id(self, path: str) -> int:
-        """Retrieve the id corresponding to a given category path.
-
-        Args:
-            path (str): The path of category.
-
-        Returns:
-            int: The id associated with the provided category path.
-
-        Raises:
-            ValueError: If the account category path does not exist or is duplicated.
-        """
-        df = self.list_account_categories()
-        result = df.loc[df["path"] == path, "id"]
-        if result.empty:
-            raise ValueError(f"No id found for account category path: {path}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple ids found for category path: {path}")
-        else:
-            return result.item()
-
-    def account_category_from_id(self, id: int) -> int:
-        """Retrieve the path corresponding to a given account category id.
-
-        Args:
-            id (int): The id of category path.
-
-        Returns:
-            path: The path associated with the provided account category id.
-
-        Raises:
-            ValueError: If the account category id does not exist or is duplicated.
-        """
-        df = self.list_account_categories()
-        result = df.loc[df["id"] == id, "path"]
-        if result.empty:
-            raise ValueError(f"No path found for account category id: {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple paths found for account category id: {id}")
-        else:
-            return result.item()
-
-    # ----------------------------------------------------------------------
     # Ledger
 
     def list_journal_entries(self) -> pd.DataFrame:
@@ -462,36 +492,3 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._journal_cache = super().list_journal_entries()
             self._journal_cache_time = datetime.now()
         return self._journal_cache
-
-    # ----------------------------------------------------------------------
-    # Cache Invalidation
-
-    def invalidate_accounts_cache(self) -> None:
-        """Invalidates the cached accounts data."""
-        self._accounts_cache = None
-        self._accounts_cache_time = None
-
-    def invalidate_tax_rates_cache(self) -> None:
-        """Invalidates the cached tax rates data."""
-        self._tax_rates_cache = None
-        self._tax_rates_cache_time = None
-
-    def invalidate_currencies_cache(self) -> None:
-        """Invalidates the cached currencies data."""
-        self._currencies_cache = None
-        self._currencies_cache_time = None
-
-    def invalidate_account_categories_cache(self) -> None:
-        """Invalidates the cached account categories data."""
-        self._account_categories_cache = None
-        self._account_categories_cache_time = None
-
-    def invalidate_journal_cache(self) -> None:
-        """Invalidates the cached journal entries data."""
-        self._journal_cache = None
-        self._journal_cache_time = None
-
-    def invalidate_files_cache(self) -> None:
-        """Invalidates the cached files data."""
-        self._files_cache = None
-        self._files_cache_time = None
