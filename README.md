@@ -1,6 +1,6 @@
 # Python Client for CashCtrl REST API
 
-[![codecov](https://codecov.io/gh/lasuk/cashctrl_api/branch/main/graph/badge.svg)](https://codecov.io/gh/lasuk/cashctrl_api)
+[![codecov](https://codecov.io/gh/macxred/cashctrl_api/branch/main/graph/badge.svg)](https://codecov.io/gh/macxred/cashctrl_api)
 
 `cashctrl_api` is a lightweight Python package that implements the
 CashCtrlClient class for interactions with the
