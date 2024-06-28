@@ -107,25 +107,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._files_cache_time = None
 
     # ----------------------------------------------------------------------
-    # API Requests
-
-    def get(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
-        """Send GET request. See json_request for args and return value."""
-        return self.json_request("GET", endpoint, data=data, params=params)
-
-    def post(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
-        """Send POST request. See json_request for args and return value."""
-        return self.json_request("POST", endpoint, data=data, params=params)
-
-    def put(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
-        """Send PUT request. See json_request for args and return value."""
-        return self.json_request("PUT", endpoint, data=data, params=params)
-
-    def delete(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
-        """Send DELETE request. See json_request for args and return value."""
-        return self.json_request("DELETE", endpoint, data=data, params=params)
-
-    # ----------------------------------------------------------------------
     # Categories
 
     def list_account_categories(self) -> pd.DataFrame:
