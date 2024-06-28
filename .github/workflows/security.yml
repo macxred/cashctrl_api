@@ -9,7 +9,7 @@ on:
   # Manually triggered
   workflow_dispatch:
 
-name: Security
+name: Security Check
 
 jobs:
   docker:
