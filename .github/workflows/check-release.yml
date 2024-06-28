@@ -56,4 +56,14 @@ jobs:
         run: python setup.py develop
 
       - name: Run tests
-        run: pytest -W error
+        run: |
+          . venv/bin/activate
+          coverage run -m pytest -W error
+          coverage report
+
+      - name: Upload coverage to Codecov
+        run: |
+          . venv/bin/activate
+          bash <(curl -s https://codecov.io/bash)
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
