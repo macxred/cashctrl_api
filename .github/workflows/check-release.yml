@@ -61,9 +61,7 @@ jobs:
           coverage run -m pytest -W error
           coverage report
 
-      - name: Upload coverage to Codecov
-        run: |
-          . venv/bin/activate
-          bash <(curl -s https://codecov.io/bash)
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
