@@ -42,6 +42,9 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._files_cache: Optional[pd.DataFrame] = None
         self._files_cache_time: Optional[datetime] = None
 
+    # ----------------------------------------------------------------------
+    # Cache Invalidation
+
     @property
     def cache_timeout(self) -> int:
         """Gets the current cache timeout.
@@ -59,9 +62,6 @@ class CachedCashCtrlClient(CashCtrlClient):
             timeout (int): The new cache timeout in seconds.
         """
         self._cache_timeout = timeout
-
-    # ----------------------------------------------------------------------
-    # Helper Methods
 
     def _is_expired(self, cache_time: Optional[datetime]) -> bool:
         """Checks if the cache has expired based on the cache timeout.

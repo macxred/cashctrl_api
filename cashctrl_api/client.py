@@ -41,7 +41,7 @@ class CashCtrlClient:
         self._base_url = f"https://{organisation}.cashctrl.com/api/v1"
 
     # ----------------------------------------------------------------------
-    # Helper Methods
+    # API Requests
 
     def request(
         self, method: str, endpoint: str, data: dict = None, params: dict = None
@@ -127,9 +127,6 @@ class CashCtrlClient:
                 msg = " / ".join(msg)
             raise RequestException(f"API call failed. {msg}")
         return result
-
-    # ----------------------------------------------------------------------
-    # API Requests
 
     def get(self, endpoint: str, data: dict = None, params: dict = None) -> dict:
         """Send GET request. See json_request for args and return value."""
