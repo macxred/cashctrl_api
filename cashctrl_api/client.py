@@ -61,7 +61,8 @@ class CashCtrlClient:
             HTTPError: If the API request fails with non-200 status code.
 
         This method will retry the request up to three times in case of
-        connection-related exceptions, waiting one second between retries.
+        connection-related exceptions or 429 status code, waiting one second
+        between retries.
         """
         data = data or {}
         params = params or {}
@@ -78,7 +79,12 @@ class CashCtrlClient:
             try:
                 response = request(method, url, auth=(self._api_key, ''),
                                    data=flatten(data), params=flatten(params))
-                break
+                if response.status_code == 429 and attempt < retries - 1:
+                    # Too Many Requests hit the API too quickly. See
+                    # https://app.cashctrl.com/static/help/en/api/index.html#errors
+                    time.sleep(1)
+                else:
+                    break
             except (urllib3.exceptions.MaxRetryError,
                     requests.exceptions.ConnectionError) as e:
                 attempt += 1
@@ -86,6 +92,7 @@ class CashCtrlClient:
                     time.sleep(1)
                 else:
                     raise e
+
         if response.status_code != 200:
             raise HTTPError(
                 f"API request failed with status {response.status_code}: {response.text}"
