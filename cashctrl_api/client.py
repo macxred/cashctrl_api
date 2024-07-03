@@ -8,7 +8,7 @@ import re
 import time
 from typing import Dict, List
 import pandas as pd
-from requests import HTTPError, put, request, RequestException, Response
+from requests import request, HTTPError, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
 from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
@@ -43,42 +43,28 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # API Requests
 
-    def request(
-        self, method: str, endpoint: str, data: dict = None, params: dict = None
-    ) -> Response:
-        """Send an API request to CashCtrl.
+    def request_with_retry(self, method: str, url: str, **kwargs) -> Response:
+        """Send an API request to CashCtrl with retry logic.
 
         Args:
-            method (str): HTTP method ('GET', 'POST', etc.).
-            endpoint (str): API endpoint to call (e.g. 'journal/read.json')
-            data (dict, optional): The payload to send in the request.
-            params (dict, optional): The parameters to append in the request URL.
+            method (str): HTTP method to use for the request (e.g., 'GET', 'POST').
+            url (str): The full URL for the API endpoint.
+            **kwargs: Additional arguments to pass to the request.
 
         Returns:
             requests.Response: The API response.
 
         Raises:
-            HTTPError: If the API request fails with non-200 status code.
+            HTTPError: If the API request fails with a non-200 status code.
 
         This method will retry the request up to three times in case of
-        connection-related exceptions or 429 status code, waiting one second
-        between retries.
+        connection-related exceptions or a 429 status code (Too Many Requests).
+        It waits one second between retries.
         """
-        data = data or {}
-        params = params or {}
-
-        def flatten(data):
-            return {
-                k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
-                for k, v in data.items()
-            }
-
-        url = f"{self._base_url}/{endpoint}"
         retries = 3
         for attempt in range(retries):
             try:
-                response = request(method, url, auth=(self._api_key, ''),
-                                   data=flatten(data), params=flatten(params))
+                response = request(method, url, **kwargs)
                 if response.status_code == 429 and attempt < retries - 1:
                     # Too Many Requests hit the API too quickly. See
                     # https://app.cashctrl.com/static/help/en/api/index.html#errors
@@ -97,6 +83,37 @@ class CashCtrlClient:
             raise HTTPError(
                 f"API request failed with status {response.status_code}: {response.text}"
             )
+        return response
+
+    def request(
+        self, method: str, endpoint: str, data: dict = None, params: dict = None
+    ) -> Response:
+        """Send an API request with authentication token to CashCtrl.
+
+        Args:
+            method (str): HTTP method ('GET', 'POST', etc.).
+            endpoint (str): API endpoint to call (e.g. 'journal/read.json')
+            data (dict, optional): The payload to send in the request.
+            params (dict, optional): The parameters to append in the request URL.
+
+        Returns:
+            requests.Response: The API response.
+
+        Raises:
+            HTTPError: If the API request fails with non-200 status code.
+        """
+        data = data or {}
+        params = params or {}
+
+        def flatten(data):
+            return {
+                k: (json.dumps(v) if isinstance(v, (list, dict)) else v)
+                for k, v in data.items()
+            }
+
+        url = f"{self._base_url}/{endpoint}"
+        response = self.request_with_retry(method, url, auth=(self._api_key, ''),
+                                           data=flatten(data), params=flatten(params))
         return response
 
     def json_request(
@@ -373,7 +390,8 @@ class CashCtrlClient:
 
         with open(path, "rb") as file:
             headers = {"Content-Type": "application/octet-stream"}
-            response = put(write_url, file, headers=headers, timeout=60)
+            response = self.request_with_retry("PUT", write_url, data=file, headers=headers,
+                                               timeout=60)
         if response.status_code != 200:
             raise HTTPError(f"File upload failed: {response.reason}.")
 
