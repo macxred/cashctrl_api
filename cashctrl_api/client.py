@@ -239,7 +239,7 @@ class CashCtrlClient:
         elif resource != "account" and isinstance(target, dict):
             raise ValueError("Target should be a list for resources other than 'account'.")
 
-        category_list = self.list_categories(resource, include_system=True)
+        category_list = self.list_categories(resource, include_system=(resource.lower() != "file"))
         categories = dict(zip(category_list["path"], category_list["id"]))
 
         if delete:
