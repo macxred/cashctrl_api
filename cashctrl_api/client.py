@@ -8,7 +8,7 @@ import re
 import time
 from typing import Dict, List
 import pandas as pd
-from requests import HTTPError, put, request, RequestException, Response
+from requests import request, HTTPError, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
 from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
@@ -43,10 +43,54 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # API Requests
 
+    def request_with_retry(
+            self, method: str, url: str, wait_time: float = 1, **kwargs
+    ) -> Response:
+        """Send an API request to CashCtrl with retry logic.
+
+        Args:
+            method (str): HTTP method to use for the request (e.g., 'GET', 'POST').
+            url (str): The full URL for the API endpoint.
+            wait_time (float): Time to wait between retries in seconds. Default is 1 second.
+            **kwargs: Additional arguments to pass to the request.
+
+        Returns:
+            requests.Response: The API response.
+
+        Raises:
+            HTTPError: If the API request fails with a non-200 status code.
+
+        This method will retry the request up to three times in case of
+        connection-related exceptions or a 429 status code (Too Many Requests).
+        """
+        retries = 3
+        for attempt in range(retries):
+            try:
+                response = request(method, url, **kwargs)
+                if response.status_code == 429 and attempt < retries - 1:
+                    # Too Many Requests hit the API too quickly. See
+                    # https://app.cashctrl.com/static/help/en/api/index.html#errors
+                    time.sleep(wait_time)
+                else:
+                    break
+            except (urllib3.exceptions.MaxRetryError,
+                    requests.exceptions.ConnectionError) as e:
+                attempt += 1
+                if attempt < retries:
+                    time.sleep(wait_time)
+                else:
+                    raise e
+
+        if response.status_code != 200:
+            raise HTTPError(
+                f"API request failed with status {response.status_code}: {response.text}"
+            )
+        return response
+
     def request(
         self, method: str, endpoint: str, data: dict = None, params: dict = None
     ) -> Response:
-        """Send an API request to CashCtrl.
+        """Send an API request with authentication token to CashCtrl.
 
         Args:
             method (str): HTTP method ('GET', 'POST', etc.).
@@ -59,10 +103,6 @@ class CashCtrlClient:
 
         Raises:
             HTTPError: If the API request fails with non-200 status code.
-
-        This method will retry the request up to three times in case of
-        connection-related exceptions or 429 status code, waiting one second
-        between retries.
         """
         data = data or {}
         params = params or {}
@@ -74,29 +114,8 @@ class CashCtrlClient:
             }
 
         url = f"{self._base_url}/{endpoint}"
-        retries = 3
-        for attempt in range(retries):
-            try:
-                response = request(method, url, auth=(self._api_key, ''),
-                                   data=flatten(data), params=flatten(params))
-                if response.status_code == 429 and attempt < retries - 1:
-                    # Too Many Requests hit the API too quickly. See
-                    # https://app.cashctrl.com/static/help/en/api/index.html#errors
-                    time.sleep(1)
-                else:
-                    break
-            except (urllib3.exceptions.MaxRetryError,
-                    requests.exceptions.ConnectionError) as e:
-                attempt += 1
-                if attempt < retries:
-                    time.sleep(1)
-                else:
-                    raise e
-
-        if response.status_code != 200:
-            raise HTTPError(
-                f"API request failed with status {response.status_code}: {response.text}"
-            )
+        response = self.request_with_retry(method, url, auth=(self._api_key, ''),
+                                           data=flatten(data), params=flatten(params))
         return response
 
     def json_request(
@@ -239,7 +258,7 @@ class CashCtrlClient:
         elif resource != "account" and isinstance(target, dict):
             raise ValueError("Target should be a list for resources other than 'account'.")
 
-        category_list = self.list_categories(resource, include_system=True)
+        category_list = self.list_categories(resource, include_system=(resource.lower() != "file"))
         categories = dict(zip(category_list["path"], category_list["id"]))
 
         if delete:
@@ -314,7 +333,11 @@ class CashCtrlClient:
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
         """
-        files = pd.DataFrame(self.get("file/list.json")["data"])
+        # get("file/list.json") returns by default the first 100 elements.
+        # We override the size limit to download all values
+        # https://app.cashctrl.com/static/help/en/api/index.html#/file/list.json
+        response = self.get("file/list.json", params={"limit": 999999999999999999})
+        files = pd.DataFrame(response["data"])
         columns_except_path = {
             key: value for key, value in FILE_COLUMNS.items() if key != "path"
         }
@@ -373,7 +396,8 @@ class CashCtrlClient:
 
         with open(path, "rb") as file:
             headers = {"Content-Type": "application/octet-stream"}
-            response = put(write_url, file, headers=headers, timeout=60)
+            response = self.request_with_retry("PUT", write_url, data=file, headers=headers,
+                                               timeout=60)
         if response.status_code != 200:
             raise HTTPError(f"File upload failed: {response.reason}.")
 
