@@ -6,13 +6,11 @@ from cashctrl_api import CashCtrlClient
 
 
 def random_word(length: int) -> str:
-    """Generate a random word using lowercase letters."""
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for _ in range(length))
 
 
-def test_upload_file_and_download(tmp_path) -> None:
-    """Test uploading and downloading files."""
+def test_upload_file_and_download(tmp_path):
     cc_client = CashCtrlClient()
 
     # Create a temporary file with random content to upload

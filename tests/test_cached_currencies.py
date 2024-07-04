@@ -7,12 +7,12 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def cc_client() -> CachedCashCtrlClient:
+def cc_client():
     return CachedCashCtrlClient()
 
 
 @pytest.fixture(scope="module")
-def currencies() -> pd.DataFrame:
+def currencies():
     # TODO: After implementing #29 (Type-Consistent list_currencies Method),
     # change below lines to:
     # Explicitly call the base class method to circumvent the cache
@@ -22,48 +22,38 @@ def currencies() -> pd.DataFrame:
     return pd.DataFrame(cc_client.get("currency/list.json")["data"])
 
 
-def test_currencies_cache_is_none_on_init(cc_client: CachedCashCtrlClient) -> None:
+def test_currencies_cache_is_none_on_init(cc_client):
     assert cc_client._currencies_cache is None
     assert cc_client._currencies_cache_time is None
 
 
-def test_cached_currencies_same_to_actual(
-    cc_client: CachedCashCtrlClient, currencies: pd.DataFrame
-) -> None:
+def test_cached_currencies_same_to_actual(cc_client, currencies):
     pd.testing.assert_frame_equal(cc_client.list_currencies(), currencies)
 
 
-def test_currency_from_id(
-    cc_client: CachedCashCtrlClient, currencies: pd.DataFrame
-) -> None:
+def test_currency_from_id(cc_client, currencies):
     assert (
         cc_client.currency_from_id(currencies["id"].iat[0]) == currencies["text"].iat[0]
     ), "Cached currency doesn't correspond actual"
 
 
-def test_currency_from_id_invalid_id_raises_error(
-    cc_client: CachedCashCtrlClient
-) -> None:
+def test_currency_from_id_invalid_id_raises_error(cc_client):
     with pytest.raises(ValueError, match="No currency found for id"):
         cc_client.currency_from_id(99999999)
 
 
-def test_currency_to_id(
-    cc_client: CachedCashCtrlClient, currencies: pd.DataFrame
-) -> None:
+def test_currency_to_id(cc_client, currencies):
     assert (
         cc_client.currency_to_id(currencies["text"].iat[1]) == currencies["id"].iat[1]
     ), "Cached currency id doesn't correspond actual id"
 
 
-def test_currency_to_id_with_invalid_currency_raises_error(
-    cc_client: CachedCashCtrlClient
-) -> None:
+def test_currency_to_id_with_invalid_currency_raises_error(cc_client):
     with pytest.raises(ValueError, match="No id found for currency"):
         cc_client.currency_to_id(99999999)
 
 
-def test_currencies_cache_timeout() -> None:
+def test_currencies_cache_timeout():
     cc_client = CachedCashCtrlClient(cache_timeout=1)
     cc_client.list_currencies()
     assert not cc_client._is_expired(cc_client._currencies_cache_time)
@@ -71,7 +61,7 @@ def test_currencies_cache_timeout() -> None:
     assert cc_client._is_expired(cc_client._currencies_cache_time)
 
 
-def test_currencies_cache_invalidation() -> None:
+def test_currencies_cache_invalidation():
     cc_client = CachedCashCtrlClient()
     cc_client.list_currencies()
     assert not cc_client._is_expired(cc_client._currencies_cache_time)

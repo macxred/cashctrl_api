@@ -12,23 +12,21 @@ def cc_client() -> CachedCashCtrlClient:
 
 
 @pytest.fixture(scope="module")
-def journal_entries(cc_client: CachedCashCtrlClient) -> pd.DataFrame:
+def journal_entries(cc_client) -> pd.DataFrame:
     """Explicitly call the base class method to circumvent the cache."""
     return cc_client.list_journal_entries()
 
 
-def test_journal_cache_is_none_on_init(cc_client: CachedCashCtrlClient) -> None:
+def test_journal_cache_is_none_on_init(cc_client):
     assert cc_client._journal_cache is None
     assert cc_client._journal_cache_time is None
 
 
-def test_cached_journal_entries_same_to_actual(
-    cc_client: CachedCashCtrlClient, journal_entries: pd.DataFrame
-) -> None:
+def test_cached_journal_entries_same_to_actual(cc_client, journal_entries):
     pd.testing.assert_frame_equal(cc_client.list_journal_entries(), journal_entries)
 
 
-def test_journal_cache_timeout() -> None:
+def test_journal_cache_timeout():
     cc_client = CachedCashCtrlClient(cache_timeout=1)
     cc_client.list_journal_entries()
     assert not cc_client._is_expired(cc_client._journal_cache_time)
@@ -36,7 +34,7 @@ def test_journal_cache_timeout() -> None:
     assert cc_client._is_expired(cc_client._journal_cache_time)
 
 
-def test_journal_cache_invalidation() -> None:
+def test_journal_cache_invalidation():
     cc_client = CachedCashCtrlClient()
     cc_client.list_journal_entries()
     assert not cc_client._is_expired(cc_client._journal_cache_time)
