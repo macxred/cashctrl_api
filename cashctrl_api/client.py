@@ -43,12 +43,15 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # API Requests
 
-    def request_with_retry(self, method: str, url: str, **kwargs) -> Response:
+    def request_with_retry(
+            self, method: str, url: str, wait_time: float = 1, **kwargs
+    ) -> Response:
         """Send an API request to CashCtrl with retry logic.
 
         Args:
             method (str): HTTP method to use for the request (e.g., 'GET', 'POST').
             url (str): The full URL for the API endpoint.
+            wait_time (float): Time to wait between retries in seconds. Default is 1 second.
             **kwargs: Additional arguments to pass to the request.
 
         Returns:
@@ -59,7 +62,6 @@ class CashCtrlClient:
 
         This method will retry the request up to three times in case of
         connection-related exceptions or a 429 status code (Too Many Requests).
-        It waits one second between retries.
         """
         retries = 3
         for attempt in range(retries):
@@ -68,14 +70,14 @@ class CashCtrlClient:
                 if response.status_code == 429 and attempt < retries - 1:
                     # Too Many Requests hit the API too quickly. See
                     # https://app.cashctrl.com/static/help/en/api/index.html#errors
-                    time.sleep(1)
+                    time.sleep(wait_time)
                 else:
                     break
             except (urllib3.exceptions.MaxRetryError,
                     requests.exceptions.ConnectionError) as e:
                 attempt += 1
                 if attempt < retries:
-                    time.sleep(1)
+                    time.sleep(wait_time)
                 else:
                     raise e
 
@@ -331,7 +333,11 @@ class CashCtrlClient:
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
         """
-        files = pd.DataFrame(self.get("file/list.json")["data"])
+        # get("file/list.json") returns by default the first 100 elements.
+        # We override the size limit to download all values
+        # https://app.cashctrl.com/static/help/en/api/index.html#/file/list.json
+        response = self.get("file/list.json", params={"limit": 999999999999999999})
+        files = pd.DataFrame(response["data"])
         columns_except_path = {
             key: value for key, value in FILE_COLUMNS.items() if key != "path"
         }
