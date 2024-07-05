@@ -12,7 +12,7 @@ def cc_client() -> CachedCashCtrlClient:
 
 
 @pytest.fixture(scope="module")
-def journal_entries(cc_client) -> pd.DataFrame:
+def journal_entries(cc_client):
     """Explicitly call the base class method to circumvent the cache."""
     return cc_client.list_journal_entries()
 

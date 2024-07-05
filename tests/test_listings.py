@@ -42,7 +42,7 @@ def test_list_accounts_to_have_expected_columns_and_dtypes():
         )
 
 
-def test_list_journal_entries_to_have_columns_and_dtypes() -> None:
+def test_list_journal_entries_to_have_columns_and_dtypes():
     # Create the CashCtrlClient object and fetch the DataFrame
     cc_client = CashCtrlClient()
     journal_entries = cc_client.list_journal_entries()
