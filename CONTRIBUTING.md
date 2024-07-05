@@ -38,9 +38,8 @@ rapid iterations without the need for reinstallation.
 
 Follow these steps to set up your local development environment on Unix/Mac OS:
 
-<details><summary> Click to expand.</summary>
-
-<br>
+<details>
+<summary>Click to expand</summary>
 
 1. **Navigate to the local folder designated for package development.**
     For example:
@@ -85,28 +84,27 @@ Follow these steps to set up your local development environment on Unix/Mac OS:
 
 </details>
 
-
 ## Naming Patterns
 
-### Branch name
+### Branch Name
 ```
 (feat|fix|docs|style|refactor|test|revert)/taskId_task-short-description
 Ex.: feat/1_add-commit-and-branch-name-styles-to-readme
 ```
 
-### Commit name
+### Commit Name
 ```
 (feat|fix|docs|style|refactor|test|revert): update descriptions
-Ex.: bug: update readme
+Ex.: fix: update readme
 ```
 
-### Commit description
+### Commit Description
 ```
 tickets: #taskId, #taskId
 Ex.: tickets: #1, #2, #3
 ```
 
-### Pull-request name
+### Pull Request Name
 ```
 (Feat|Fix|Docs|Style|Refactor|Test|Revert): #taskId description
 Ex.: Fix: #15 unnecessary request removed
@@ -146,8 +144,8 @@ DataFrames:
 ```python
 import pandas as pd
 from cashctrl_api import CashCtrlClient
-cc_client = CashCtrlClient()
 
+cc_client = CashCtrlClient()
 df = pd.DataFrame(cc_client.get('journal/list.json')['data'])
 df.loc[df['account'] == '1020', 'amount'].sum()
 ```
@@ -226,16 +224,27 @@ richer language model.
 
 ## Standards and Best Practices
 
-We adhere to community standards and best practices to ensure our code is
-readable, maintainable, and easily integrated across projects.
+We adhere to community standards and best practices to ensure our code is readable,
+maintainable, and easily integrated across projects. Here are some guidelines and tools we use:
+
+### Code Style and Linting
+
+- **Code Style**: We follow the Google style guide for Python.
+- **Line Width**: We adhere to PEP 8 (Alternative code style)
+                  with a maximum line width of 100 characters.
+- **Linting**: We use **flake8** to enforce code quality and consistency.
+- **Security Testing**: We perform security testing with **Bandit** and **Safety** to check
+                        for common security issues and vulnerabilities in dependencies.
+
+### Resources
+
 Here are some recommended resources on coding styles:
 
 - [Python's Code Style Guide](https://docs.python-guide.org/writing/style/)
 - [Real Python on PEP8](https://realpython.com/python-pep8/)
 
-By aligning with these standards, we set clear expectations for contributions
-and ensure the quality of our work. ChatGPT can help review and align our code
-with these practices.
+By aligning with these standards, we set clear expectations for contributions and ensure
+the quality of our work. ChatGPT can help review and align our code with these practices.
 
 ## Shared Learning
 
