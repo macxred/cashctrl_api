@@ -1,7 +1,7 @@
 """Unit tests for cached account categories."""
 
 import time
-from cashctrl_api import CachedCashCtrlClient
+from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
 import pandas as pd
 import pytest
 
@@ -12,10 +12,9 @@ def cc_client():
 
 
 @pytest.fixture(scope="module")
-def account_categories():
+def account_categories(cc_client):
     # Explicitly call the base class method to circumvent the cache.
-    cc_client = CachedCashCtrlClient()
-    return cc_client.list_categories("account", include_system=True)
+    return CashCtrlClient.list_categories(cc_client, "account", include_system=True)
 
 
 def test_account_categories_cache_is_none_on_init(cc_client):

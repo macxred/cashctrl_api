@@ -1,7 +1,7 @@
 """Unit tests for cached journal entries."""
 
 import time
-from cashctrl_api import CachedCashCtrlClient
+from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
 import pandas as pd
 import pytest
 
@@ -14,7 +14,7 @@ def cc_client() -> CachedCashCtrlClient:
 @pytest.fixture(scope="module")
 def journal_entries(cc_client):
     # Explicitly call the base class method to circumvent the cache.
-    return cc_client.list_journal_entries()
+    return CashCtrlClient.list_journal_entries(cc_client)
 
 
 def test_journal_cache_is_none_on_init(cc_client):
