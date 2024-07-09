@@ -8,20 +8,16 @@ import pytest
 
 @pytest.fixture
 def mock_directory(tmp_path: Path):
-    """Create a mock directory with various files and subdirectories for testing."""
-    # For debugging, set: tmp_path = Path("temp_test"); tmp_path.mkdir()
+    """Create a temporary directory, populate with files and folders."""
     (tmp_path / "file1.txt").write_text("This is a text file.")
     (tmp_path / "file2.log").write_text("Log content here.")
     (tmp_path / ".hiddenfile").write_text("Secret content.")
-
     subdir = tmp_path / "subdir"
     subdir.mkdir()
     (subdir / "file3.txt").write_text("Another text file in a subdirectory.")
-
     hidden_dir = tmp_path / ".hiddendir"
     hidden_dir.mkdir()
     (hidden_dir / "hidden_file.txt").write_text("Hidden file in hidden dir.")
-
     return tmp_path
 
 

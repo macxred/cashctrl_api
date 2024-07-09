@@ -7,14 +7,9 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def tmp_path_for_module(tmp_path_factory):
-    return tmp_path_factory.mktemp("temp")
-
-
-@pytest.fixture(scope="module")
-def mock_directory(tmp_path_for_module):
+def mock_directory(tmp_path_factory):
     """Create a temporary directory, populate with files and folders."""
-    tmp_path = tmp_path_for_module
+    tmp_path = tmp_path_factory.mktemp("temp")
     (tmp_path / "file1.txt").write_text("This is a text file.")
     (tmp_path / "file2.log").write_text("Log content here.")
     subdir = tmp_path / "subdir"
