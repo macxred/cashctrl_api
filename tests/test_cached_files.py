@@ -44,7 +44,7 @@ def cc_client(mock_directory):
 
 @pytest.fixture(scope="module")
 def files(cc_client):
-    """Explicitly call the base class method to circumvent the cache."""
+    # Explicitly call the base class method to circumvent the cache.
     return CashCtrlClient.list_files(cc_client)
 
 

@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.fixture
-def mock_directory(tmp_path: Path):
+def mock_directory(tmp_path: Path) -> Path:
     """Create a temporary directory, populate with files and folders."""
     (tmp_path / "file1.txt").write_text("This is a text file.")
     (tmp_path / "file2.log").write_text("Log content here.")

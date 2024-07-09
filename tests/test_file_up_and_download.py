@@ -6,6 +6,7 @@ from cashctrl_api import CashCtrlClient
 
 
 def random_word(length: int) -> str:
+    """Generate a random word using lowercase letters."""
     letters = string.ascii_lowercase
     return "".join(random.choice(letters) for _ in range(length))
 

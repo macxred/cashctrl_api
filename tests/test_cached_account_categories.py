@@ -13,7 +13,7 @@ def cc_client():
 
 @pytest.fixture(scope="module")
 def account_categories():
-    """Explicitly call the base class method to circumvent the cache."""
+    # Explicitly call the base class method to circumvent the cache.
     cc_client = CachedCashCtrlClient()
     return cc_client.list_categories("account", include_system=True)
 
