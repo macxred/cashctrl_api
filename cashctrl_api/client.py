@@ -12,7 +12,7 @@ from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
 from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
-from .enforce_dtypes import enforce_dtypes
+from consistent_df import enforce_dtypes
 from .list_directory import list_directory
 
 
