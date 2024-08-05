@@ -4,10 +4,7 @@ from cashctrl_api import CashCtrlClient, constants
 import pandas as pd
 
 
-def test_list_tax_rates_to_have_expected_columns() -> None:
-    """Test that the DataFrame returned by CashCtrlClient contains all expected columns
-    with the correct data types as specified in TAX_COLUMNS.
-    """
+def test_list_tax_rates_to_have_expected_columns_and_dtypes():
     # Given: CashCtrlClient returns a DataFrame of tax rates
     cc_client = CashCtrlClient()
     tax_rates = cc_client.list_tax_rates()
@@ -26,10 +23,7 @@ def test_list_tax_rates_to_have_expected_columns() -> None:
         )
 
 
-def test_list_accounts_to_have_expected_columns() -> None:
-    """Test that the DataFrame returned by CashCtrlClient's list_accounts contains all expected
-    columns with the correct data types as specified in ACCOUNT_COLUMNS.
-    """
+def test_list_accounts_to_have_expected_columns_and_dtypes():
     # Create the CashCtrlClient object and fetch the DataFrame
     cc_client = CashCtrlClient()
     accounts = cc_client.list_accounts()
@@ -48,10 +42,7 @@ def test_list_accounts_to_have_expected_columns() -> None:
         )
 
 
-def test_list_journal_entries_to_have_columns() -> None:
-    """Test that the DataFrame returned by CashCtrlClient's list_journal_entries contains
-    all expected columns with the correct data types as specified in JOURNAL_ENTRIES.
-    """
+def test_list_journal_entries_to_have_columns_and_dtypes():
     # Create the CashCtrlClient object and fetch the DataFrame
     cc_client = CashCtrlClient()
     journal_entries = cc_client.list_journal_entries()

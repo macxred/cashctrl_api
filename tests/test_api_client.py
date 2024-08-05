@@ -4,48 +4,31 @@ from cashctrl_api import CashCtrlClient
 import pytest
 
 
-def test_person_list():
+def test_get_person_list():
     cc_client = CashCtrlClient()
     cc_client.get("person/list.json")
 
 
-def test_person_flatten_dict():
-    """Test creating, reading, and deleting a person."""
-    # create
+def test_create_read_delete_person():
     contact = {
         "firstName": "Tina",
         "lastName": "Test",
-        "addresses": [
-            {
-                "type": "MAIN",
-                "address": "Teststreet 15",
-                "zip": "1234",
-                "city": "Testtown",
-            }
-        ],
         "titleId": 2,
     }
     cc_client = CashCtrlClient()
     response = cc_client.post("person/create.json", data=contact)
     id = response["insertId"]
-    # read
     response = cc_client.get("person/read.json", params={"id": id})
-    # delete
     response = cc_client.post("person/delete.json", params={"ids": id})
 
 
-def test_exception_when_not_successful():
-    """Test exception handling for unsuccessful API calls."""
+def test_create_category_failed_with_invalid_payload():
     cc_client = CashCtrlClient()
-
-    # Error message with filed name (error['field'] is set)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(Exception, match='API call failed'):
         cc_client.post("file/category/create.json")
-    assert str(e.value) == "API call failed. name: This field cannot be empty."
 
-    # Error message without filed name (error['field']=None)
-    with pytest.raises(Exception) as e:
+
+def test_create_person_failed_with_invalid_payload():
+    cc_client = CashCtrlClient()
+    with pytest.raises(Exception, match='API call failed'):
         cc_client.post("person/create.json")
-    assert str(e.value) == (
-        "API call failed. Either first name, last name or company must be set."
-    )

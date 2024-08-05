@@ -33,8 +33,7 @@ def remote_content(cc_client: CashCtrlClient, file_id: int) -> str:
     return response.content.decode("utf-8")
 
 
-def test_directory_mirroring(mock_directory: Path) -> None:
-    """Test that the directory mirroring correctly syncs local files to remote."""
+def test_directory_mirroring_sync_local_files_to_remote(mock_directory):
     cc_client = CashCtrlClient()
 
     # Mirror directory and check file presence
@@ -105,8 +104,7 @@ def test_directory_mirroring(mock_directory: Path) -> None:
     )
 
 
-def test_mirror_empty_directory(tmp_path: Path) -> None:
-    """Ensure that mirroring an empty directory removes all remote files."""
+def test_mirror_empty_directory_removes_all_remote_files(tmp_path):
     cc_client = CashCtrlClient()
     cc_client.mirror_directory(tmp_path, delete_files=True)
     assert cc_client.list_files().empty, (

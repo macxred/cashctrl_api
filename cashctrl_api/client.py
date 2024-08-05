@@ -8,7 +8,7 @@ import re
 import time
 from typing import Dict, List
 import pandas as pd
-from requests import request, HTTPError, RequestException, Response
+from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
 from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
