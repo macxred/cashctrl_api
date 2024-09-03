@@ -38,9 +38,8 @@ rapid iterations without the need for reinstallation.
 
 Follow these steps to set up your local development environment on Unix/Mac OS:
 
-<details><summary> Click to expand.</summary>
-
-<br>
+<details>
+<summary>Click to expand</summary>
 
 1. **Navigate to the local folder designated for package development.**
     For example:
@@ -85,28 +84,27 @@ Follow these steps to set up your local development environment on Unix/Mac OS:
 
 </details>
 
-
 ## Naming Patterns
 
-### Branch name
+### Branch Name
 ```
 (feat|fix|docs|style|refactor|test|revert)/taskId_task-short-description
 Ex.: feat/1_add-commit-and-branch-name-styles-to-readme
 ```
 
-### Commit name
+### Commit Name
 ```
 (feat|fix|docs|style|refactor|test|revert): update descriptions
-Ex.: bug: update readme
+Ex.: fix: update readme
 ```
 
-### Commit description
+### Commit Description
 ```
 tickets: #taskId, #taskId
 Ex.: tickets: #1, #2, #3
 ```
 
-### Pull-request name
+### Pull Request Name
 ```
 (Feat|Fix|Docs|Style|Refactor|Test|Revert): #taskId description
 Ex.: Fix: #15 unnecessary request removed
@@ -146,8 +144,8 @@ DataFrames:
 ```python
 import pandas as pd
 from cashctrl_api import CashCtrlClient
-cc_client = CashCtrlClient()
 
+cc_client = CashCtrlClient()
 df = pd.DataFrame(cc_client.get('journal/list.json')['data'])
 df.loc[df['account'] == '1020', 'amount'].sum()
 ```
@@ -226,16 +224,112 @@ richer language model.
 
 ## Standards and Best Practices
 
-We adhere to community standards and best practices to ensure our code is
-readable, maintainable, and easily integrated across projects.
+We adhere to community standards and best practices to ensure our code is readable,
+maintainable, and easily integrated across projects. Here are the specific guidelines
+and tools we use:
+
+### Code Style
+
+- **Code Style**: We follow the Google style guide for Python because it is a globally
+  recognized standard that aligns well with our own coding preferences. This guide
+  emphasizes clarity, simplicity, and readability, making it easier for developers
+  worldwide to understand and contribute to our project.
+- **Line Width**: We adhere to PEP 8 (Alternative code style) with a maximum line width
+  of 100 characters. This choice is motivated by the capabilities of modern screens,
+  which can display more information at once, and the nature of pandas operations,
+  which often require wider lines for better readability and reduced line wrapping.
+
+### Linting
+
+- **Flake8**: We use Flake8 to enforce code quality and consistency. Flake8 is a
+  comprehensive tool that integrates several linters, providing both logical and
+  stylistic checks to ensure our code adheres to best practices. It helps catch common
+  errors and enforces coding standards automatically. We also run automated GitHub
+  Action to execute Flake8 on push and pull requests, and daily at 04:00 UTC that is located
+  at [linter.yml](.github/workflows/linter.yml) file. The [configuration for Flake8](.flake8)
+  is tailored to our project needs, with specific linting rules turned
+  off to align with the Google style guide:
+  ```ini
+  [flake8]
+  max-line-length = 100
+  ignore = D100,D101,D102,D103,D104,D105,D107,D202,D203,D204,D205,D400,D401,D402,D403,
+           D404,D405,D406,D407,D408,D409,D410,D411,D412,D413,D414,E203,W503
+  import-order-style = google
+  docstring-convention = google
+  exclude = .git,__pycache__,.pytest_cache,*.egg-info
+  ```
+
+  To install Flake8, run:
+  ```bash
+  pip install flake8
+  ```
+
+  To check the code with Flake8, run:
+  ```bash
+  flake8 .
+  ```
+
+### Security Testing
+
+We perform security testing with **Bandit** and **Safety** to check for common security
+issues and vulnerabilities in dependencies. This ensures that our code is secure and
+reliable.
+
+- **Bandit**: Bandit helps identify security issues in your code by scanning for common
+  security vulnerabilities.
+  To install Bandit, run:
+  ```bash
+  pip install bandit
+  ```
+
+  To check the code for security issues with Bandit, run:
+  ```bash
+  bandit -r .
+  ```
+
+- **Safety**: Safety checks for known vulnerabilities in your dependencies, ensuring
+  that your project does not include insecure packages.
+  To install Safety, run:
+  ```bash
+  pip install safety
+  ```
+
+  To check for vulnerabilities in dependencies with Safety, run:
+  ```bash
+  safety check
+  ```
+
+### Code Coverage
+
+We use **Codecov** to monitor and report code coverage statistics, ensuring that our
+tests cover as much of the codebase as possible. High code coverage helps ensure that
+our code is well-tested and reliable. The configuration for **Codecov** is located at
+[.coveragerc](.coveragerc) file.
+
+  To install the necessary tools for code coverage, run:
+  ```bash
+  pip install coverage
+  ```
+
+  To run tests and collect coverage data, run:
+  ```bash
+  coverage run -m pytest
+  ```
+
+  To generate a coverage report, run:
+  ```bash
+  coverage report
+  ```
+
+## Resources
+
 Here are some recommended resources on coding styles:
 
 - [Python's Code Style Guide](https://docs.python-guide.org/writing/style/)
 - [Real Python on PEP8](https://realpython.com/python-pep8/)
 
-By aligning with these standards, we set clear expectations for contributions
-and ensure the quality of our work. ChatGPT can help review and align our code
-with these practices.
+By aligning with these standards, we set clear expectations for contributions and ensure
+the quality of our work. ChatGPT can help review and align our code with these practices.
 
 ## Shared Learning
 
