@@ -27,8 +27,7 @@ account_categories = {
 }
 
 
-def test_initial_category_creation() -> None:
-    """Test that categories are correctly created initially."""
+def test_correct_initial_category_creation():
     cc_client = CashCtrlClient()
     cc_client.update_categories("file", target=categories)
     remote_categories = cc_client.list_categories("file")
@@ -37,8 +36,7 @@ def test_initial_category_creation() -> None:
     ), "Remote categories do not match initial categories"
 
 
-def test_category_addition() -> None:
-    """Test that new categories are added correctly (delete=False)."""
+def test_update_category_with_delete_false_should_create_categories():
     cc_client = CashCtrlClient()
     cc_client.update_categories("file", target=more_categories, delete=False)
     remote_categories = cc_client.list_categories("file")
@@ -48,8 +46,7 @@ def test_category_addition() -> None:
 
 
 @pytest.mark.skip(reason="One category on test account can not be deleted.")
-def test_category_deletion() -> None:
-    """Test that categories are deleted when specified."""
+def test_update_category_with_delete_true_should_delete_categories():
     cc_client = CashCtrlClient()
     cc_client.update_categories("file", target=more_categories, delete=True)
     remote_categories = cc_client.list_categories("file")
@@ -60,45 +57,39 @@ def test_category_deletion() -> None:
 
 
 @pytest.mark.skip(reason="One category on test account can not be deleted.")
-def test_category_removal() -> None:
-    """Test that all categories are deleted when specified."""
+def test_update_category_should_remove_categories_with_empty_target_and_delete_true():
     cc_client = CashCtrlClient()
     cc_client.update_categories("file", target=[], delete=True)
     remote_categories = cc_client.list_categories("file")
     assert len(remote_categories) == 0, "Some remote categories remain."
 
 
-def test_invalid_path() -> None:
-    """Test the system's response to invalid category paths."""
+def test_invalid_path_raises_error():
     invalid_categories = ["not/a/valid/path", ""]
     cc_client = CashCtrlClient()
     with pytest.raises(KeyError):
         cc_client.update_categories("file", target=[invalid_categories[0]])
 
 
-def test_update_account_categories_with_list() -> None:
-    """Test that should get error while updating account categories with target as a list type."""
+def test_update_account_categories_with_list_raises_error():
     cc_client = CashCtrlClient()
     with pytest.raises(ValueError):
         cc_client.update_categories("account", target=categories)
 
 
-def test_update_file_categories_with_dict() -> None:
-    """Test that should get error while updating file categories with target as a dict type."""
+def test_update_file_categories_with_dict_raises_error():
     cc_client = CashCtrlClient()
     with pytest.raises(ValueError):
         cc_client.update_categories("file", target=account_categories)
 
 
-def test_update_file_categories_raises_error_when_creating_account_root_node() -> None:
-    """Test that attempting to create a new root node in account categories raises an error."""
+def test_update_file_categories_raises_error_when_creating_account_root_node():
     cc_client = CashCtrlClient()
     with pytest.raises(ValueError, match="Cannot create new root node"):
         cc_client.update_categories("account", target={"/new_root_node": 42})
 
 
-def test_account_category_update() -> None:
-    """Test update_categories for accounts and then restores initial state."""
+def test_account_category_update():
     cc_client = CashCtrlClient()
     initial_categories = cc_client.list_categories("account", include_system=True)
 
@@ -140,7 +131,7 @@ def test_account_category_update() -> None:
     assert updated == initial_paths, "Initial categories were not restored"
 
 
-def test_account_category_delete_root_category_ignore_account_root_nodes() -> None:
+def test_account_category_delete_root_category_ignore_account_root_nodes():
     """Test that attempting to delete a root account category raises an error.
     unless ignore_account_root_nodes=True.
     """
@@ -153,10 +144,7 @@ def test_account_category_delete_root_category_ignore_account_root_nodes() -> No
     # indirectly tested in test_mirror_accounts() the cashctrl_ledger package.
 
 
-def test_account_category_update_root_category_ignore_account_root_nodes() -> None:
-    """Test that attempting to update a root account category raises an error
-    unless ignore_account_root_nodes=True.
-    """
+def test_account_category_update_root_category_ignore_account_root_nodes():
     cc_client = CashCtrlClient()
     categories = cc_client.list_categories("account", include_system=True)
     balance_category = categories[categories["path"] == "/Balance"]
@@ -179,8 +167,7 @@ def test_account_category_update_root_category_ignore_account_root_nodes() -> No
     pd.testing.assert_frame_equal(updated_categories, categories)
 
 
-def test_account_category_create_new_root_category_raise_error() -> None:
-    """Test that should raise an error trying create a new root account category."""
+def test_account_category_create_new_root_category_raises_error():
     cc_client = CashCtrlClient()
     categories = cc_client.list_categories("account", include_system=True)
     target = categories.set_index("path")["number"].to_dict()

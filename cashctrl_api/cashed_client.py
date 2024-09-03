@@ -157,14 +157,12 @@ class CachedCashCtrlClient(CashCtrlClient):
             path: The path associated with the provided account category id.
 
         Raises:
-            ValueError: If the account category id does not exist or is duplicated.
+            ValueError: If the account category id does not exist.
         """
         df = self.list_account_categories()
         result = df.loc[df["id"] == id, "path"]
         if result.empty:
             raise ValueError(f"No path found for account category id: {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple paths found for account category id: {id}")
         else:
             return result.item()
 
@@ -263,8 +261,7 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such tax code.
 
         Raises:
-            ValueError: If the tax id does not exist and allow_missing=False,
-                        or if the id is duplicated.
+            ValueError: If the tax id does not exist and allow_missing=False.
         """
         df = self.list_tax_rates()
         result = df.loc[df["id"] == id, "name"]
@@ -273,8 +270,6 @@ class CachedCashCtrlClient(CashCtrlClient):
                 return None
             else:
                 raise ValueError(f"No tax code found for id: {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple tax codes found for id: {id}")
         else:
             return result.item()
 
@@ -333,8 +328,7 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or None if allow_missing is True and there is no such account.
 
         Raises:
-            ValueError: If the id does not exist and allow_missing=False,
-            or if the id is duplicated.
+            ValueError: If the id does not exist and allow_missing=False.
         """
         df = self.list_accounts()
         result = df.loc[df["id"] == id, "number"]
@@ -343,8 +337,6 @@ class CachedCashCtrlClient(CashCtrlClient):
                 return None
             else:
                 raise ValueError(f"No account found for id {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple accounts found for id {id}")
         else:
             return result.item()
 
@@ -428,14 +420,12 @@ class CachedCashCtrlClient(CashCtrlClient):
             str: The currency name associated with the provided id.
 
         Raises:
-            ValueError: If the currency id does not exist or is duplicated.
+            ValueError: If the currency id does not exist.
         """
         df = self.list_currencies()
         result = df.loc[df["id"] == id, "text"]
         if result.empty:
             raise ValueError(f"No currency found for id: {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple currencies found for id: {id}")
         else:
             return result.item()
 

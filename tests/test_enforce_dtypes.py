@@ -6,16 +6,14 @@ import pandas as pd
 import pytest
 
 
-def test_empty_input() -> None:
-    """Test input is None."""
+def test_none_as_input():
     result = enforce_dtypes(None)
     assert isinstance(result, pd.DataFrame)
     assert result.empty
     assert list(result.columns) == []
 
 
-def test_required_columns_added() -> None:
-    """Test adding required columns."""
+def test_should_add_required_columns():
     required_columns = {
         "Column1": "int64",
         "Column2": "float64",
@@ -28,8 +26,7 @@ def test_required_columns_added() -> None:
     assert result["Column2"].dtype == "float64"
 
 
-def test_optional_columns_added() -> None:
-    """Test adding optional columns."""
+def test_should_add_optional_columns():
     required_columns = {"Column1": "int64"}
     optional_columns = {"Column2": "float64"}
     df = pd.DataFrame({"Column1": [1]})
@@ -42,16 +39,14 @@ def test_optional_columns_added() -> None:
     assert result["Column2"].dtype == "float64"
 
 
-def test_missing_required_columns() -> None:
-    """Test exception when missing required columns."""
+def test_missing_required_columns_raises_error():
     df = pd.DataFrame({"Column3": ["data"]})
     required_columns = {"Column1": "int64"}
     with pytest.raises(ValueError):
         enforce_dtypes(data=df, required=required_columns)
 
 
-def test_keep_extra_columns() -> None:
-    """Test dropping columns not in the required or optional lists."""
+def test_drop_extra_columns_with_keep_extra_columns_false():
     df = pd.DataFrame({"Column1": [1], "Column3": ["extra"]})
     required_columns = {"Column1": "int64"}
     result = enforce_dtypes(
@@ -61,6 +56,11 @@ def test_keep_extra_columns() -> None:
     )
     assert "Column3" not in result.columns
     assert list(result.columns) == ["Column1"]
+
+
+def test_keep_extra_columns_with_keep_extra_columns_true():
+    df = pd.DataFrame({"Column1": [1], "Column3": ["extra"]})
+    required_columns = {"Column1": "int64"}
     result = enforce_dtypes(
         data=df,
         required=required_columns,
@@ -70,10 +70,7 @@ def test_keep_extra_columns() -> None:
     assert list(result.columns) == ["Column1", "Column3"]
 
 
-def test_dtype_conversion() -> None:
-    """Test dtype conversion where original vector has string elements
-    interpretable as floats or integers.
-    """
+def test_should_convert_dtype_from_str_to_int_and_float():
     required_columns = {"Column1": "int64", "Column2": "float64"}
     optional_columns = {"Column3": "object"}
     df = pd.DataFrame({"Column1": ["1", "2", "3"], "Column2": ["1.1", "2.2", "3.3"]})
@@ -86,8 +83,7 @@ def test_dtype_conversion() -> None:
     assert result["Column2"].dtype == "float64"
 
 
-def test_invalid_dtype_conversion() -> None:
-    """Test exception when dtype conversion is invalid."""
+def test_invalid_dtype_conversion_raises_error():
     df = pd.DataFrame({"Column1": ["invalid"], "Column2": ["data"]})
     required_columns = {"Column1": "int64", "Column2": "float64"}
     with pytest.raises(
@@ -96,8 +92,7 @@ def test_invalid_dtype_conversion() -> None:
         enforce_dtypes(data=df, required=required_columns)
 
 
-def test_datetime_without_timezone() -> None:
-    """Test adding a datetime column without timezone."""
+def test_add_datetime_column_without_timezone():
     df = pd.DataFrame({"Column1": [1, 2], "Date": ["2021-01-01", "2022-02-02"]})
     required_columns = {"Column1": "int64", "Date": "datetime64[ns]"}
     result = enforce_dtypes(data=df, required=required_columns)
@@ -105,8 +100,7 @@ def test_datetime_without_timezone() -> None:
     assert result["Date"].dtype == "datetime64[ns]"
 
 
-def test_datetime_with_timezone() -> None:
-    """Test adding a datetime column with timezone using zoneinfo."""
+def test_add_datetime_column_with_timezone_using_zoneinfo():
     df = pd.DataFrame({"Column1": [1], "Date": ["2021-01-01T12:00:00"]})
     required_columns = {"Column1": "int64", "Date": "datetime64[ns, US/Eastern]"}
     result = enforce_dtypes(data=df, required=required_columns)
@@ -117,8 +111,7 @@ def test_datetime_with_timezone() -> None:
     assert result["Date"].dtype == "datetime64[ns, US/Eastern]"
 
 
-def test_datetime_conversion_fail() -> None:
-    """Test failure in converting invalid datetime format."""
+def test_invalid_datetime_conversion_raises_error():
     df = pd.DataFrame({"Column1": [1], "Date": ["not a date"]})
     required_columns = {"Column1": "int64", "Date": "datetime64[ns]"}
     with pytest.raises(
