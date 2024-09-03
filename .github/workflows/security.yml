@@ -44,7 +44,7 @@ jobs:
           . venv/bin/activate
 
       - name: Install dependencies
-        run: pip install pytest pandas bandit safety
+        run: pip install pytest pandas bandit safety .
 
       - name: Install package
         run: python setup.py develop
