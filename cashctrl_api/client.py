@@ -1,5 +1,6 @@
 """Module to interact with the REST API of the CashCtrl accounting service."""
 
+from datetime import datetime
 import json
 from mimetypes import guess_type
 import os
@@ -557,3 +558,28 @@ class CashCtrlClient:
         journal_entries = pd.DataFrame(response["data"])
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
         return df.sort_values("dateAdded")
+
+    # ----------------------------------------------------------------------
+    # Price
+
+    def get_exchange_rate(
+        self,
+        from_currency: str,
+        to_currency: str,
+        date: datetime.date = None
+    ) -> float:
+        """
+        Retrieves the exchange rate for a given currency pair on a specific date.
+
+        Args:
+            from_currency (str): The currency code to convert from.
+            to_currency (str): The currency code to convert to.
+            date (datetime.date, optional): The date for which the exchange rate
+                is requested. Defaults to None, which retrieves the latest rate.
+
+        Returns:
+            float: The exchange rate for the given currency pair.
+        """
+        params = {"from": from_currency, "to": to_currency, "date": date}
+        response = self.request("GET", "currency/exchangerate", params=params)
+        return response.json()
