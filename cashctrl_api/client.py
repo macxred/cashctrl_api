@@ -339,6 +339,10 @@ class CashCtrlClient:
         # https://app.cashctrl.com/static/help/en/api/index.html#/file/list.json
         response = self.get("file/list.json", params={"limit": 999999999999999999})
         files = pd.DataFrame(response["data"])
+        date_columns = ["created", "lastUpdated", "dateArchived"]
+        if not files.empty:
+            for column in date_columns:
+                files[column] = files[column].astype("datetime64[ns, Europe/Berlin]")
         columns_except_path = {
             key: value for key, value in FILE_COLUMNS.items() if key != "path"
         }
@@ -491,9 +495,7 @@ class CashCtrlClient:
         for local_file, remote_category, file_id in zip(
             to_update["path"], to_update["remote_category"], to_update["id"]
         ):
-            self.upload_file(
-                Path(directory) / local_file, category=category_map[remote_category],
-                id=int(file_id)
+            self.upload_file(Path(directory) / local_file, category=category_map[remote_category],id=int(file_id)
             )
 
         to_upload = local_files.loc[
