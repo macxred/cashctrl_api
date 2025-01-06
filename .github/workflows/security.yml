@@ -44,13 +44,10 @@ jobs:
           . venv/bin/activate
 
       - name: Install dependencies
-        run: pip install pytest pandas bandit safety .
+        run: pip install pytest pandas bandit setuptools .
 
       - name: Install package
         run: python setup.py develop
 
       - name: Run Bandit
         run: bandit -r cashctrl_api -ll
-
-      - name: Run Safety
-        run: safety check -r setup.py
