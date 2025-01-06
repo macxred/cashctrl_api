@@ -501,7 +501,7 @@ class CachedCashCtrlClient(CashCtrlClient):
             ValueError: If the profit center id does not exist and allow_missing=False.
         """
         df = self.list_profit_centers()
-        result = df.loc[df["id"] == id, "name"]
+        result = df.query("id == @id")["name"]
         if result.empty:
             if allow_missing:
                 return None
@@ -527,7 +527,7 @@ class CachedCashCtrlClient(CashCtrlClient):
                         or if the profit center is duplicated.
         """
         df = self.list_profit_centers()
-        result = df.loc[df["name"] == name, "id"]
+        result = df.query("name == @name")["id"]
         if result.empty:
             if allow_missing:
                 return None
