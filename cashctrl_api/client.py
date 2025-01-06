@@ -12,7 +12,14 @@ import pandas as pd
 from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
-from .constants import ACCOUNT_COLUMNS, CATEGORY_COLUMNS, FILE_COLUMNS, JOURNAL_ENTRIES, TAX_COLUMNS
+from .constants import (
+    ACCOUNT_COLUMNS,
+    CATEGORY_COLUMNS,
+    FILE_COLUMNS,
+    JOURNAL_ENTRIES,
+    PROFIT_CENTER_COLUMNS,
+    TAX_COLUMNS
+)
 from consistent_df import enforce_dtypes
 from .list_directory import list_directory
 
@@ -587,3 +594,16 @@ class CashCtrlClient:
         params = {"from": from_currency, "to": to_currency, "date": date}
         response = self.request("GET", "currency/exchangerate", params=params)
         return response.json()
+
+    # ----------------------------------------------------------------------
+    # Profit Centers
+
+    def list_profit_centers(self) -> pd.DataFrame:
+        """List remote profit centers with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.PROFIT_CENTER_COLUMNS schema.
+        """
+        profit_centers = pd.DataFrame(self.get("account/costcenter/list.json")["data"])
+        df = enforce_dtypes(profit_centers, PROFIT_CENTER_COLUMNS)
+        return df.sort_values("name")
