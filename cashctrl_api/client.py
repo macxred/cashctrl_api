@@ -495,7 +495,9 @@ class CashCtrlClient:
         for local_file, remote_category, file_id in zip(
             to_update["path"], to_update["remote_category"], to_update["id"]
         ):
-            self.upload_file(Path(directory) / local_file, category=category_map[remote_category],id=int(file_id)
+            self.upload_file(
+                Path(directory) / local_file,
+                category=category_map[remote_category], id=int(file_id)
             )
 
         to_upload = local_files.loc[
