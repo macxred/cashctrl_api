@@ -41,6 +41,8 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._tax_rates_cache_time: Optional[datetime] = None
         self._files_cache: Optional[pd.DataFrame] = None
         self._files_cache_time: Optional[datetime] = None
+        self._profit_centers_cache: Optional[pd.DataFrame] = None
+        self._profit_centers_cache_time: Optional[datetime] = None
 
     # ----------------------------------------------------------------------
     # Cache Invalidation
@@ -105,6 +107,11 @@ class CachedCashCtrlClient(CashCtrlClient):
         """Invalidates the cached files data."""
         self._files_cache = None
         self._files_cache_time = None
+
+    def invalidate_profit_centers_cache(self) -> None:
+        """Invalidates the cached profit centers data."""
+        self._profit_centers_cache = None
+        self._profit_centers_cache_time = None
 
     # ----------------------------------------------------------------------
     # Categories
@@ -463,3 +470,70 @@ class CachedCashCtrlClient(CashCtrlClient):
             self._journal_cache = super().list_journal_entries()
             self._journal_cache_time = datetime.now()
         return self._journal_cache
+
+    # ----------------------------------------------------------------------
+    # Profit Centers
+
+    def list_profit_centers(self) -> pd.DataFrame:
+        """Lists remote profit centers with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.PROFIT_CENTER_COLUMNS schema.
+        """
+        if self._profit_centers_cache is None or self._is_expired(self._profit_centers_cache_time):
+            self._profit_centers_cache = super().list_profit_centers()
+            self._profit_centers_cache_time = datetime.now()
+        return self._profit_centers_cache
+
+    def profit_center_from_id(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the profit center name corresponding to a given id.
+
+        Args:
+            id (int): The id of the profit center.
+            allow_missing (boolean): If True, return None if the profit center id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The profit center name associated with the provided id.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center id does not exist and allow_missing=False.
+        """
+        df = self.list_profit_centers()
+        result = df.query("id == @id")["name"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No profit center found for id: {id}")
+        else:
+            return result.item()
+
+    def profit_center_to_id(self, name: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given profit center name.
+
+        Args:
+            name (str): The profit center name.
+            allow_missing (boolean): If True, return None if the profit center does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided profit center name.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center does not exist and allow_missing=False,
+                        or if the profit center is duplicated.
+        """
+        df = self.list_profit_centers()
+        result = df.query("name == @name")["id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for profit center {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for profit center {name}")
+        else:
+            return result.item()

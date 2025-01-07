@@ -139,3 +139,24 @@ JOURNAL_ENTRIES = {
     "costCenterNumbers": "Int64",
     "isRecurring": "bool",
 }
+
+PROFIT_CENTER_COLUMNS = {
+    "id": "int",
+    "created": "datetime64[ns, Europe/Berlin]",
+    "createdBy": "string[python]",
+    "lastUpdated": "datetime64[ns, Europe/Berlin]",
+    "lastUpdatedBy": "string[python]",
+    "categoryId": "Int64",
+    "categoryName": "string[python]",
+    "number": "int",
+    "name": "string[python]",
+    "type": "string[python]",
+    "notes": "string[python]",
+    "attachmentCount": "Int64",
+    "openingAmount": "Int64",
+    "endAmount": "Int64",
+    "targetMin": "Int64",
+    "targetMax": "Int64",
+    "targetDisplay": "Int64",
+    "isInactive": "bool",
+}
