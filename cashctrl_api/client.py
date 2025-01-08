@@ -567,6 +567,12 @@ class CashCtrlClient:
         # https://app.cashctrl.com/static/help/en/api/index.html#/journal/list.json
         response = self.get("journal/list.json", params={"limit": 999999999999999999})
         journal_entries = pd.DataFrame(response["data"])
+        if not journal_entries.empty:
+            journal_entries["costCenterIds"] = (
+                journal_entries["costCenterIds"].apply(
+                    lambda x: ','.join(eval(x)) if pd.notna(x) else x
+                )
+            )
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
         return df.sort_values("dateAdded")
 
