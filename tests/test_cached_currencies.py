@@ -13,13 +13,8 @@ def cc_client():
 
 @pytest.fixture(scope="module")
 def currencies():
-    # TODO: After implementing #29 (Type-Consistent list_currencies Method),
-    # change below lines to:
-    # Explicitly call the base class method to circumvent the cache
-    # cc_client = CashCtrlClient()
-    # return cc_client.list_currencies()
     cc_client = CachedCashCtrlClient()
-    return pd.DataFrame(cc_client.get("currency/list.json")["data"])
+    return cc_client.list_currencies()
 
 
 def test_currencies_cache_is_none_on_init(cc_client):
