@@ -16,11 +16,8 @@ setup(
     extras_require={
         "dev": [
             "flake8",
-            "flake8-import-order",
-            "flake8-docstrings",
-            "flake8-bugbear",
             "bandit",
-            "pytest-cov"
+            "pytest",
         ]
     }
 )
