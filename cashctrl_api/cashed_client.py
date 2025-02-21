@@ -460,14 +460,14 @@ class CachedCashCtrlClient(CashCtrlClient):
     # ----------------------------------------------------------------------
     # Ledger
 
-    def list_journal_entries(self) -> pd.DataFrame:
+    def list_journal_entries(self, fiscal_period_id: int | None = None) -> pd.DataFrame:
         """Lists remote journal entries with their attributes, and caches the result.
 
         Returns:
             pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
         """
         if self._journal_cache is None or self._is_expired(self._journal_cache_time):
-            self._journal_cache = super().list_journal_entries()
+            self._journal_cache = super().list_journal_entries(fiscal_period_id=fiscal_period_id)
             self._journal_cache_time = datetime.now()
         return self._journal_cache
 
