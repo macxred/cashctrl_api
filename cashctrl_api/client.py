@@ -560,7 +560,7 @@ class CashCtrlClient:
         """List remote journal entries with their attributes.
 
         Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
+            pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
         """
         # get("journal/list.json") returns by default the first 100 elements.
         # We override the size limit to download all values
