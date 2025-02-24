@@ -849,16 +849,22 @@ class CashCtrlClient:
     # Ledger
 
     @timed_cache(seconds=CACHE_TIMEOUT)
-    def list_journal_entries(self) -> pd.DataFrame:
+    def list_journal_entries(self, fiscal_period_id: int | None = None) -> pd.DataFrame:
         """List remote journal entries with their attributes.
 
+        Args:
+            fiscal_period_id (int | None, optional):
+                - If None (default), retrieves entries for the current fiscal period.
+                - If provided, retrieves entries for the specified fiscal period.
+
         Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.ACCOUNT_COLUMNS schema.
+            pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
         """
         # get("journal/list.json") returns by default the first 100 elements.
         # We override the size limit to download all values
         # https://app.cashctrl.com/static/help/en/api/index.html#/journal/list.json
-        response = self.get("journal/list.json", params={"limit": 999999999999999999})
+        params = {"limit": 999999999999999999, "fiscalPeriodId": fiscal_period_id}
+        response = self.get("journal/list.json", params=params)
         journal_entries = pd.DataFrame(response["data"])
         df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
         return df.sort_values("dateAdded")
