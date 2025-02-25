@@ -1,7 +1,10 @@
-# TODO: Temporary copy this unit from `PyLedger` to `CashCtrlApi`
-# Reevaluate its final placement, considering shared modules and import dependencies.
+"""
+This module provides decorators for caching.
 
-"""Provides decorator for caching."""
+It is copied from the pyledger package for now as a temporary solution in order
+to avoid an unwanted dependency towards pyledger. To avoid duplicate code,
+we should re-evaluate its final storage location at a later point.
+"""
 
 from time import time
 from functools import wraps
