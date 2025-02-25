@@ -35,8 +35,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._currencies_cache_time: Optional[datetime] = None
         self._journal_cache: Optional[pd.DataFrame] = None
         self._journal_cache_time: Optional[datetime] = None
-        self._files_cache: Optional[pd.DataFrame] = None
-        self._files_cache_time: Optional[datetime] = None
         self._profit_centers_cache: Optional[pd.DataFrame] = None
         self._profit_centers_cache_time: Optional[datetime] = None
 
@@ -89,26 +87,10 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._journal_cache = None
         self._journal_cache_time = None
 
-    def invalidate_files_cache(self) -> None:
-        """Invalidates the cached files data."""
-        self._files_cache = None
-        self._files_cache_time = None
-
     def invalidate_profit_centers_cache(self) -> None:
         """Invalidates the cached profit centers data."""
         self._profit_centers_cache = None
         self._profit_centers_cache_time = None
-
-    # ----------------------------------------------------------------------
-    # File Operations
-
-    def mirror_directory(self, *args, **kwargs):
-        super().mirror_directory(*args, **kwargs)
-        self.invalidate_files_cache()
-
-    def upload_file(self, *args, **kwargs) -> int:
-        super().upload_file(*args, **kwargs)
-        self.invalidate_files_cache()
 
     # ----------------------------------------------------------------------
     # Accounts

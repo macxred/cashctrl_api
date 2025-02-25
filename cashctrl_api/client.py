@@ -511,7 +511,7 @@ class CashCtrlClient:
 
         if id is None:
             self.post("file/persist.json", params={"ids": new_file_id})
-            return new_file_id
+            file_id = new_file_id
         else:
             params = {
                 "id": id,
@@ -520,7 +520,10 @@ class CashCtrlClient:
                 "categoryId": category,
             }
             self.post("file/update.json", params=params)
-            return int(id)
+            file_id = int(id)
+
+        self.list_files.cache_clear()
+        return file_id
 
     def download_file(self, id: int | str, path: str | Path):
         """Downloads a file identified by a remote ID and saves it locally.
@@ -612,6 +615,7 @@ class CashCtrlClient:
             self.upload_file(
                 Path(directory) / local_file, category=category_map[remote_category]
             )
+        self.list_files.cache_clear()
 
     # ----------------------------------------------------------------------
     # Tax Rates
