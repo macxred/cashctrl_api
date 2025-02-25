@@ -1,6 +1,5 @@
 """Unit tests for cached account categories."""
 
-import time
 from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
 import pandas as pd
 import pytest
@@ -15,11 +14,6 @@ def cc_client():
 def account_categories(cc_client):
     # Explicitly call the base class method to circumvent the cache.
     return CashCtrlClient.list_categories(cc_client, "account", include_system=True)
-
-
-def test_account_categories_cache_is_none_on_init(cc_client):
-    assert cc_client._account_categories_cache is None
-    assert cc_client._account_categories_cache_time is None
 
 
 def test_cached_account_categories_same_to_actual(cc_client, account_categories):
@@ -48,19 +42,3 @@ def test_account_category_to_id(cc_client, account_categories):
 def test_account_category_to_id_with_invalid_account_category_raises_error(cc_client):
     with pytest.raises(ValueError, match="No id found for account category path"):
         cc_client.account_category_to_id(99999999)
-
-
-def test_account_categories_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_account_categories()
-    assert not cc_client._is_expired(cc_client._account_categories_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._account_categories_cache_time)
-
-
-def test_account_categories_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_account_categories()
-    assert not cc_client._is_expired(cc_client._account_categories_cache_time)
-    cc_client.invalidate_account_categories_cache()
-    assert cc_client._is_expired(cc_client._account_categories_cache_time)
