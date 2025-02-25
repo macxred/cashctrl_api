@@ -333,6 +333,13 @@ class CashCtrlClient:
                     response = self.post(f"{resource}/category/create.json", params=params)
                     categories[node_path] = response["insertId"]
 
+        if resource == "file":
+            # TODO: uncomment when add timed_cache() decorator to the list_files() method
+            # self.list_files.cache_clear()
+            pass
+        elif resource == "account":
+            self.list_account_categories.cache_clear()
+
     @timed_cache(seconds=CACHE_TIMEOUT)
     def list_account_categories(self) -> pd.DataFrame:
         """Lists remote account categories with their attributes, and caches the result.

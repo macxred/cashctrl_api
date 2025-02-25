@@ -33,8 +33,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._accounts_cache_time: Optional[datetime] = None
         self._currencies_cache: Optional[pd.DataFrame] = None
         self._currencies_cache_time: Optional[datetime] = None
-        self._account_categories_cache: Optional[pd.DataFrame] = None
-        self._account_categories_cache_time: Optional[datetime] = None
         self._journal_cache: Optional[pd.DataFrame] = None
         self._journal_cache_time: Optional[datetime] = None
         self._files_cache: Optional[pd.DataFrame] = None
@@ -86,11 +84,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._currencies_cache = None
         self._currencies_cache_time = None
 
-    def invalidate_account_categories_cache(self) -> None:
-        """Invalidates the cached account categories data."""
-        self._account_categories_cache = None
-        self._account_categories_cache_time = None
-
     def invalidate_journal_cache(self) -> None:
         """Invalidates the cached journal entries data."""
         self._journal_cache = None
@@ -105,16 +98,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """Invalidates the cached profit centers data."""
         self._profit_centers_cache = None
         self._profit_centers_cache_time = None
-
-    # ----------------------------------------------------------------------
-    # Categories
-
-    def update_categories(self, resource: str, *args, **kwargs):
-        super().update_categories(resource, *args, **kwargs)
-        if resource == "file":
-            self.invalidate_files_cache()
-        elif resource == "account":
-            self.invalidate_account_categories_cache()
 
     # ----------------------------------------------------------------------
     # File Operations
