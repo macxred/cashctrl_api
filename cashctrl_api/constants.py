@@ -160,3 +160,5 @@ PROFIT_CENTER_COLUMNS = {
     "targetDisplay": "Int64",
     "isInactive": "bool",
 }
+
+CACHE_TIMEOUT = 300
