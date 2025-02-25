@@ -102,18 +102,6 @@ class CachedCashCtrlClient(CashCtrlClient):
     # ----------------------------------------------------------------------
     # File Operations
 
-    def list_files(self) -> pd.DataFrame:
-        """List remote files with their attributes. Add the files' hierarchical
-        position in the category tree in Unix-like filepath format.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.FILE_COLUMNS schema.
-        """
-        if self._files_cache is None or self._is_expired(self._files_cache_time):
-            self._files_cache = super().list_files()
-            self._files_cache_time = datetime.now()
-        return self._files_cache
-
     def file_id_to_path(self, id: int, allow_missing: bool = False) -> Optional[str]:
         """Retrieve the file path corresponding to a given id.
 

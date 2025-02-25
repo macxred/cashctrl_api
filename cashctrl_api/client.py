@@ -334,9 +334,7 @@ class CashCtrlClient:
                     categories[node_path] = response["insertId"]
 
         if resource == "file":
-            # TODO: uncomment when add timed_cache() decorator to the list_files() method
-            # self.list_files.cache_clear()
-            pass
+            self.list_files.cache_clear()
         elif resource == "account":
             self.list_account_categories.cache_clear()
 
@@ -393,6 +391,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # File Operations
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_files(self) -> pd.DataFrame:
         """List remote files with their attributes. Add the files' hierarchical
         position in the category tree in Unix-like filepath format.
