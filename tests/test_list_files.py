@@ -1,7 +1,6 @@
 """Unit tests for cached files."""
 
-import time
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
+from cashctrl_api import CashCtrlClient
 import pandas as pd
 import pytest
 
@@ -25,13 +24,13 @@ def mock_directory(tmp_path_factory):
 @pytest.fixture(scope="module")
 def cc_client(mock_directory):
     """Create a CachedCashCtrlClient, populate with files and folders."""
-    cc_client = CachedCashCtrlClient()
+    cc_client = CashCtrlClient()
     initial_files = cc_client.list_files()
     cc_client.mirror_directory(mock_directory, delete_files=False)
 
     # We create a fresh instance with empty cache, because the cache is
     # populated when mirroring a directory
-    cc_client = CachedCashCtrlClient()
+    cc_client = CashCtrlClient()
 
     yield cc_client
 
@@ -46,11 +45,6 @@ def cc_client(mock_directory):
 def files(cc_client):
     # Explicitly call the base class method to circumvent the cache.
     return CashCtrlClient.list_files(cc_client)
-
-
-def test_files_cache_is_none_on_init(cc_client):
-    assert cc_client._files_cache is None
-    assert cc_client._files_cache_time is None
 
 
 def test_cached_files_same_to_actual(cc_client, files):
@@ -101,19 +95,3 @@ def test_file_path_to_id_with_invalid_path_raises_error(cc_client):
 
 def test_file_path_to_id_with_invalid_returns_none_when_allowed_missing(cc_client):
     assert cc_client.file_path_to_id(99999999, allow_missing=True) is None
-
-
-def test_files_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_files()
-    assert not cc_client._is_expired(cc_client._files_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._files_cache_time)
-
-
-def test_files_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_files()
-    assert not cc_client._is_expired(cc_client._files_cache_time)
-    cc_client.invalidate_files_cache()
-    assert cc_client._is_expired(cc_client._files_cache_time)
