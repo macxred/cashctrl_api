@@ -244,17 +244,6 @@ class CachedCashCtrlClient(CashCtrlClient):
     # ----------------------------------------------------------------------
     # Tax Rates
 
-    def list_tax_rates(self) -> pd.DataFrame:
-        """Lists remote tax rates with their attributes, and caches the result.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
-        """
-        if self._tax_rates_cache is None or self._is_expired(self._tax_rates_cache_time):
-            self._tax_rates_cache = super().list_tax_rates()
-            self._tax_rates_cache_time = datetime.now()
-        return self._tax_rates_cache
-
     def tax_code_from_id(self, id: int, allow_missing: bool = False) -> Optional[str]:
         """Retrieve the tax code name corresponding to a given id.
 

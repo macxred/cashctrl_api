@@ -12,8 +12,10 @@ import pandas as pd
 from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
+from .decorators import timed_cache
 from .constants import (
     ACCOUNT_COLUMNS,
+    CACHE_TIMEOUT,
     CATEGORY_COLUMNS,
     FILE_COLUMNS,
     JOURNAL_ENTRIES,
@@ -520,6 +522,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Tax Rates
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_tax_rates(self) -> pd.DataFrame:
         """List remote tax rates with their attributes.
 
