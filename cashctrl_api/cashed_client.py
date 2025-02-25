@@ -102,44 +102,6 @@ class CachedCashCtrlClient(CashCtrlClient):
     # ----------------------------------------------------------------------
     # File Operations
 
-    def file_id_to_path(self, id: int, allow_missing: bool = False) -> Optional[str]:
-        """Retrieve the file path corresponding to a given id.
-
-        Returns:
-            str | None: The file path associated with the provided id
-                        or None if allow_missing is True and there is no such file path.
-        """
-        df = self.list_files()
-        result = df.loc[df["id"] == id, "path"]
-        if result.empty:
-            if allow_missing:
-                return None
-            else:
-                raise ValueError(f"No path found for id: {id}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple paths found for id: {id}")
-        else:
-            return result.item()
-
-    def file_path_to_id(self, path: str, allow_missing: bool = False) -> Optional[int]:
-        """Retrieve the file id corresponding to a given file path.
-
-        Returns:
-            int | None: The id associated with the file path
-                        or None if allow_missing is True and there is no such file id.
-        """
-        df = self.list_files()
-        result = df.loc[df["path"] == path, "id"]
-        if result.empty:
-            if allow_missing:
-                return None
-            else:
-                raise ValueError(f"No id found for path: {path}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple id found for path: {path}")
-        else:
-            return result.item()
-
     def mirror_directory(self, *args, **kwargs):
         super().mirror_directory(*args, **kwargs)
         self.invalidate_files_cache()
