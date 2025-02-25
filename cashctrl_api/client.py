@@ -12,8 +12,10 @@ import pandas as pd
 from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
 import urllib3.exceptions
+from .decorators import timed_cache
 from .constants import (
     ACCOUNT_COLUMNS,
+    CACHE_TIMEOUT,
     CATEGORY_COLUMNS,
     FILE_COLUMNS,
     JOURNAL_ENTRIES,
@@ -520,6 +522,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Tax Rates
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_tax_rates(self) -> pd.DataFrame:
         """List remote tax rates with their attributes.
 
@@ -529,6 +532,59 @@ class CashCtrlClient:
         tax_rates = pd.DataFrame(self.get("tax/list.json")["data"])
         df = enforce_dtypes(tax_rates, TAX_COLUMNS)
         return df.sort_values("name")
+
+    def tax_code_from_id(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the tax code name corresponding to a given id.
+
+        Args:
+            id (int): The id of the tax code.
+            allow_missing (boolean): If True, return None if the tax id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The tax code name associated with the provided id.
+                        or None if allow_missing is True and there is no such tax code.
+
+        Raises:
+            ValueError: If the tax id does not exist and allow_missing=False.
+        """
+        df = self.list_tax_rates()
+        result = df.loc[df["id"] == id, "name"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No tax code found for id: {id}")
+        else:
+            return result.item()
+
+    def tax_code_to_id(self, name: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given tax code name.
+
+        Args:
+            name (str): The tax code name.
+            allow_missing (boolean): If True, return None if the tax code does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided tax code name.
+                        or None if allow_missing is True and there is no such tax code.
+
+        Raises:
+            ValueError: If the tax code does not exist and allow_missing=False,
+                        or if the tax code is duplicated.
+        """
+        df = self.list_tax_rates()
+        result = df.loc[df["name"] == name, "id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for tax code {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for tax code {name}")
+        else:
+            return result.item()
 
     # ----------------------------------------------------------------------
     # Accounts

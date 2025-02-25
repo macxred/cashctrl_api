@@ -37,8 +37,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         self._account_categories_cache_time: Optional[datetime] = None
         self._journal_cache: Optional[pd.DataFrame] = None
         self._journal_cache_time: Optional[datetime] = None
-        self._tax_rates_cache: Optional[pd.DataFrame] = None
-        self._tax_rates_cache_time: Optional[datetime] = None
         self._files_cache: Optional[pd.DataFrame] = None
         self._files_cache_time: Optional[datetime] = None
         self._profit_centers_cache: Optional[pd.DataFrame] = None
@@ -82,11 +80,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """Invalidates the cached accounts data."""
         self._accounts_cache = None
         self._accounts_cache_time = None
-
-    def invalidate_tax_rates_cache(self) -> None:
-        """Invalidates the cached tax rates data."""
-        self._tax_rates_cache = None
-        self._tax_rates_cache_time = None
 
     def invalidate_currencies_cache(self) -> None:
         """Invalidates the cached currencies data."""
@@ -240,73 +233,6 @@ class CachedCashCtrlClient(CashCtrlClient):
     def upload_file(self, *args, **kwargs) -> int:
         super().upload_file(*args, **kwargs)
         self.invalidate_files_cache()
-
-    # ----------------------------------------------------------------------
-    # Tax Rates
-
-    def list_tax_rates(self) -> pd.DataFrame:
-        """Lists remote tax rates with their attributes, and caches the result.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.TAX_COLUMNS schema.
-        """
-        if self._tax_rates_cache is None or self._is_expired(self._tax_rates_cache_time):
-            self._tax_rates_cache = super().list_tax_rates()
-            self._tax_rates_cache_time = datetime.now()
-        return self._tax_rates_cache
-
-    def tax_code_from_id(self, id: int, allow_missing: bool = False) -> Optional[str]:
-        """Retrieve the tax code name corresponding to a given id.
-
-        Args:
-            id (int): The id of the tax code.
-            allow_missing (boolean): If True, return None if the tax id does not exist.
-                                     Otherwise raise a ValueError.
-
-        Returns:
-            str | None: The tax code name associated with the provided id.
-                        or None if allow_missing is True and there is no such tax code.
-
-        Raises:
-            ValueError: If the tax id does not exist and allow_missing=False.
-        """
-        df = self.list_tax_rates()
-        result = df.loc[df["id"] == id, "name"]
-        if result.empty:
-            if allow_missing:
-                return None
-            else:
-                raise ValueError(f"No tax code found for id: {id}")
-        else:
-            return result.item()
-
-    def tax_code_to_id(self, name: str, allow_missing: bool = False) -> Optional[int]:
-        """Retrieve the id corresponding to a given tax code name.
-
-        Args:
-            name (str): The tax code name.
-            allow_missing (boolean): If True, return None if the tax code does not exist.
-                                     Otherwise raise a ValueError.
-
-        Returns:
-            int | None: The id associated with the provided tax code name.
-                        or None if allow_missing is True and there is no such tax code.
-
-        Raises:
-            ValueError: If the tax code does not exist and allow_missing=False,
-                        or if the tax code is duplicated.
-        """
-        df = self.list_tax_rates()
-        result = df.loc[df["name"] == name, "id"]
-        if result.empty:
-            if allow_missing:
-                return None
-            else:
-                raise ValueError(f"No id found for tax code {name}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple ids found for tax code {name}")
-        else:
-            return result.item()
 
     # ----------------------------------------------------------------------
     # Accounts

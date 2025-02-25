@@ -1,25 +1,19 @@
-"""Unit tests for cached tax codes."""
+"""Unit tests for tax codes."""
 
-import time
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
+from cashctrl_api import CashCtrlClient
 import pandas as pd
 import pytest
 
 
 @pytest.fixture(scope="module")
-def cc_client() -> CachedCashCtrlClient:
-    return CachedCashCtrlClient()
+def cc_client() -> CashCtrlClient:
+    return CashCtrlClient()
 
 
 @pytest.fixture(scope="module")
 def tax_rates(cc_client):
     # Explicitly call the base class method to circumvent the cache.
     return CashCtrlClient.list_tax_rates(cc_client)
-
-
-def test_tax_rates_cache_is_none_on_init(cc_client):
-    assert cc_client._tax_rates_cache is None
-    assert cc_client._tax_rates_cache_time is None
 
 
 def test_cached_tax_codes_same_to_actual(cc_client, tax_rates):
@@ -54,19 +48,3 @@ def test_tax_code_to_id_with_invalid_tax_code_raises_error(cc_client):
 
 def test_tax_code_to_id_with_invalid_tax_code_returns_none_with_allowed_missing(cc_client):
     assert cc_client.tax_code_to_id(99999999, allow_missing=True) is None
-
-
-def test_tax_rates_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_tax_rates()
-    assert not cc_client._is_expired(cc_client._tax_rates_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._tax_rates_cache_time)
-
-
-def test_tax_rates_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_tax_rates()
-    assert not cc_client._is_expired(cc_client._tax_rates_cache_time)
-    cc_client.invalidate_tax_rates_cache()
-    assert cc_client._is_expired(cc_client._tax_rates_cache_time)
