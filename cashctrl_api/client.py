@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 import pandas as pd
 from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
@@ -533,7 +533,7 @@ class CashCtrlClient:
         df = enforce_dtypes(tax_rates, TAX_COLUMNS)
         return df.sort_values("name")
 
-    def tax_code_from_id(self, id: int, allow_missing: bool = False) -> Optional[str]:
+    def tax_code_from_id(self, id: int, allow_missing: bool = False) -> str | None:
         """Retrieve the tax code name corresponding to a given id.
 
         Args:
@@ -558,7 +558,7 @@ class CashCtrlClient:
         else:
             return result.item()
 
-    def tax_code_to_id(self, name: str, allow_missing: bool = False) -> Optional[int]:
+    def tax_code_to_id(self, name: str, allow_missing: bool = False) -> int | None:
         """Retrieve the id corresponding to a given tax code name.
 
         Args:
