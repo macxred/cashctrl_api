@@ -333,6 +333,56 @@ class CashCtrlClient:
                     response = self.post(f"{resource}/category/create.json", params=params)
                     categories[node_path] = response["insertId"]
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
+    def list_account_categories(self) -> pd.DataFrame:
+        """Lists remote account categories with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
+                          | {'number': 'Int64'} schema.
+        """
+        return self.list_categories("account", include_system=True)
+
+    def account_category_to_id(self, path: str) -> int:
+        """Retrieve the id corresponding to a given category path.
+
+        Args:
+            path (str): The path of category.
+
+        Returns:
+            int: The id associated with the provided category path.
+
+        Raises:
+            ValueError: If the account category path does not exist or is duplicated.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["path"] == path, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for account category path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for category path: {path}")
+        else:
+            return result.item()
+
+    def account_category_from_id(self, id: int) -> int:
+        """Retrieve the path corresponding to a given account category id.
+
+        Args:
+            id (int): The id of category path.
+
+        Returns:
+            path: The path associated with the provided account category id.
+
+        Raises:
+            ValueError: If the account category id does not exist.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["id"] == id, "path"]
+        if result.empty:
+            raise ValueError(f"No path found for account category id: {id}")
+        else:
+            return result.item()
+
     # ----------------------------------------------------------------------
     # File Operations
 
