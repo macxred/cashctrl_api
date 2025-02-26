@@ -953,3 +953,74 @@ class CashCtrlClient:
             raise ValueError(f"Multiple ids found for profit center {name}")
         else:
             return result.item()
+
+    # ----------------------------------------------------------------------
+    # Fiscal Periods
+
+    @timed_cache(seconds=CACHE_TIMEOUT)
+    def list_fiscal_periods(self) -> pd.DataFrame:
+        """List remote fiscal periods with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with FISCAL_PERIOD_SCHEMA applied.
+        """
+        fiscal_periods = pd.DataFrame(self._client.get("fiscalperiod/list.json")["data"])
+        fiscal_periods = enforce_dtypes(fiscal_periods, FISCAL_PERIOD_COLUMNS)
+        fp = fiscal_periods.sort_values("start").reset_index(drop=True)
+
+        # Normalize start and end dates, dropping timezone information
+        fp["start"] = fp["start"].dt.tz_localize(None).dt.floor("D")
+        fp["end"] = fp["end"].dt.tz_localize(None).dt.floor("D")
+
+        return fp
+
+    def fiscal_period_from_id(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the fiscal period name corresponding to a given id.
+
+        Args:
+            id (int): The id of the fiscal period.
+            allow_missing (bool): If True, return None if the fiscal period id does not exist.
+                                Otherwise, raise a ValueError.
+
+        Returns:
+            str | None: The fiscal period name associated with the provided id,
+                        or None if allow_missing is True and there is no such fiscal period.
+
+        Raises:
+            ValueError: If the fiscal period id does not exist and allow_missing=False.
+        """
+        df = self.list_fiscal_periods()
+        result = df.query("id == @id")["name"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No fiscal period found for id: {id}")
+        return result.item()
+
+    def fiscal_period_to_id(self, name: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given fiscal period name.
+
+        Args:
+            name (str): The fiscal period name.
+            allow_missing (bool): If True, return None if the fiscal period does not exist.
+                                Otherwise, raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided fiscal period name,
+                        or None if allow_missing is True and there is no such fiscal period.
+
+        Raises:
+            ValueError: If the fiscal period does not exist and allow_missing=False,
+                        or if the fiscal period is duplicated.
+        """
+        df = self.list_fiscal_periods()
+        result = df.query("name == @name")["id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for fiscal period {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for fiscal period {name}")
+        return result.item()
