@@ -1,25 +1,19 @@
-"""Unit tests for cached accounts."""
+"""Unit tests for accounts."""
 
-import time
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
+from cashctrl_api import CashCtrlClient
 import pandas as pd
 import pytest
 
 
 @pytest.fixture(scope="module")
 def cc_client():
-    return CachedCashCtrlClient()
+    return CashCtrlClient()
 
 
 @pytest.fixture(scope="module")
 def accounts(cc_client):
     # Explicitly call the base class method to circumvent the cache.
     return CashCtrlClient.list_accounts(cc_client)
-
-
-def test_account_cache_is_none_on_init(cc_client):
-    assert cc_client._accounts_cache is None
-    assert cc_client._accounts_cache_time is None
 
 
 def test_cached_accounts_same_to_actual(cc_client, accounts):
@@ -72,19 +66,3 @@ def test_account_to_currency_with_invalid_account_number_returns_none_with_allow
     cc_client
 ):
     assert cc_client.account_to_currency(99999999, allow_missing=True) is None
-
-
-def test_account_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_accounts()
-    assert not cc_client._is_expired(cc_client._accounts_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._accounts_cache_time)
-
-
-def test_account_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_accounts()
-    assert not cc_client._is_expired(cc_client._accounts_cache_time)
-    cc_client.invalidate_accounts_cache()
-    assert cc_client._is_expired(cc_client._accounts_cache_time)
