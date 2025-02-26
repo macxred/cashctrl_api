@@ -29,8 +29,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """
         super().__init__(*args, **kwargs)
         self._cache_timeout = cache_timeout
-        self._accounts_cache: Optional[pd.DataFrame] = None
-        self._accounts_cache_time: Optional[datetime] = None
         self._currencies_cache: Optional[pd.DataFrame] = None
         self._currencies_cache_time: Optional[datetime] = None
         self._journal_cache: Optional[pd.DataFrame] = None
@@ -71,11 +69,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         if cache_time is None:
             return True
         return (datetime.now() - cache_time) > timedelta(seconds=self._cache_timeout)
-
-    def invalidate_accounts_cache(self) -> None:
-        """Invalidates the cached accounts data."""
-        self._accounts_cache = None
-        self._accounts_cache_time = None
 
     def invalidate_currencies_cache(self) -> None:
         """Invalidates the cached currencies data."""
