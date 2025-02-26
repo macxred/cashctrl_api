@@ -161,4 +161,20 @@ PROFIT_CENTER_COLUMNS = {
     "isInactive": "bool",
 }
 
+CURRENCY_COLUMNS = {
+    "id": "int",
+    "created": "datetime64[ns, Europe/Berlin]",
+    "createdBy": "string[python]",
+    "lastUpdated": "datetime64[ns, Europe/Berlin]",
+    "lastUpdatedBy": "string[python]",
+    "code": "string[python]",
+    "description": "string[python]",
+    "rate": "float64",
+    "value": "string[python]",
+    "index": "string[python]",
+    "text": "string[python]",
+    "isDefault": "bool",
+    "isAuto": "bool",
+}
+
 CACHE_TIMEOUT = 300

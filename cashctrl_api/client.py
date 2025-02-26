@@ -17,6 +17,7 @@ from .constants import (
     ACCOUNT_COLUMNS,
     CACHE_TIMEOUT,
     CATEGORY_COLUMNS,
+    CURRENCY_COLUMNS,
     FILE_COLUMNS,
     JOURNAL_ENTRIES,
     PROFIT_CENTER_COLUMNS,
@@ -799,8 +800,9 @@ class CashCtrlClient:
         Returns:
             pd.DataFrame: A DataFrame with currencies.
         """
-        currencies = self.get("currency/list.json")["data"]
-        return pd.DataFrame(currencies)
+        currencies = pd.DataFrame(self.get("currency/list.json")["data"])
+        df = enforce_dtypes(currencies, CURRENCY_COLUMNS)
+        return df.sort_values("code")
 
     def currency_from_id(self, id: int) -> str:
         """Retrieve the currency corresponding to a given id.
