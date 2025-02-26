@@ -29,8 +29,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """
         super().__init__(*args, **kwargs)
         self._cache_timeout = cache_timeout
-        self._journal_cache: Optional[pd.DataFrame] = None
-        self._journal_cache_time: Optional[datetime] = None
         self._profit_centers_cache: Optional[pd.DataFrame] = None
         self._profit_centers_cache_time: Optional[datetime] = None
 
@@ -68,29 +66,10 @@ class CachedCashCtrlClient(CashCtrlClient):
             return True
         return (datetime.now() - cache_time) > timedelta(seconds=self._cache_timeout)
 
-    def invalidate_journal_cache(self) -> None:
-        """Invalidates the cached journal entries data."""
-        self._journal_cache = None
-        self._journal_cache_time = None
-
     def invalidate_profit_centers_cache(self) -> None:
         """Invalidates the cached profit centers data."""
         self._profit_centers_cache = None
         self._profit_centers_cache_time = None
-
-    # ----------------------------------------------------------------------
-    # Ledger
-
-    def list_journal_entries(self) -> pd.DataFrame:
-        """Lists remote journal entries with their attributes, and caches the result.
-
-        Returns:
-            pd.DataFrame: A DataFrame with CashCtrlClient.JOURNAL_ENTRIES schema.
-        """
-        if self._journal_cache is None or self._is_expired(self._journal_cache_time):
-            self._journal_cache = super().list_journal_entries()
-            self._journal_cache_time = datetime.now()
-        return self._journal_cache
 
     # ----------------------------------------------------------------------
     # Profit Centers

@@ -845,6 +845,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Ledger
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_journal_entries(self) -> pd.DataFrame:
         """List remote journal entries with their attributes.
 
