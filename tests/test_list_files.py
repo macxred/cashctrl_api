@@ -23,7 +23,7 @@ def mock_directory(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def cc_client(mock_directory):
-    """Create a CachedCashCtrlClient, populate with files and folders."""
+    """Create a CashCtrlClient, populate with files and folders."""
     cc_client = CashCtrlClient()
     initial_files = cc_client.list_files()
     cc_client.mirror_directory(mock_directory, delete_files=False)

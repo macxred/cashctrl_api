@@ -1,13 +1,13 @@
-"""Unit tests for cached account categories."""
+"""Unit tests for account categories."""
 
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
+from cashctrl_api import CashCtrlClient
 import pandas as pd
 import pytest
 
 
 @pytest.fixture(scope="module")
 def cc_client():
-    return CachedCashCtrlClient()
+    return CashCtrlClient()
 
 
 @pytest.fixture(scope="module")
