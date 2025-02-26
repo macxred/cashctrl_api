@@ -888,6 +888,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Profit Centers
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_profit_centers(self) -> pd.DataFrame:
         """List remote profit centers with their attributes.
 
@@ -897,3 +898,56 @@ class CashCtrlClient:
         profit_centers = pd.DataFrame(self.get("account/costcenter/list.json")["data"])
         df = enforce_dtypes(profit_centers, PROFIT_CENTER_COLUMNS)
         return df.sort_values("name")
+
+    def profit_center_from_id(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the profit center name corresponding to a given id.
+
+        Args:
+            id (int): The id of the profit center.
+            allow_missing (boolean): If True, return None if the profit center id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The profit center name associated with the provided id.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center id does not exist and allow_missing=False.
+        """
+        df = self.list_profit_centers()
+        result = df.query("id == @id")["name"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No profit center found for id: {id}")
+        else:
+            return result.item()
+
+    def profit_center_to_id(self, name: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given profit center name.
+
+        Args:
+            name (str): The profit center name.
+            allow_missing (boolean): If True, return None if the profit center does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided profit center name.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center does not exist and allow_missing=False,
+                        or if the profit center is duplicated.
+        """
+        df = self.list_profit_centers()
+        result = df.query("name == @name")["id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for profit center {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for profit center {name}")
+        else:
+            return result.item()
