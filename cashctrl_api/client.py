@@ -707,6 +707,87 @@ class CashCtrlClient:
         df = enforce_dtypes(df, ACCOUNT_COLUMNS)
         return df.sort_values("number")
 
+    def account_from_id(self, id: int, allow_missing: bool = False) -> int | None:
+        """Retrieve the account number corresponding to a given id.
+
+        Args:
+            id (int): The id of the account.
+            allow_missing (boolean): If True, return None if the account id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The account number associated with the provided id
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the id does not exist and allow_missing=False.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["id"] == id, "number"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No account found for id {id}")
+        else:
+            return result.item()
+
+    def account_to_id(self, account: int, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): If True, return None if the account number does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided account number.
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the account number does not exist and allow_missing=False,
+                        or if the number is duplicated.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["number"] == account, "id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for account: {account}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for account: {account}")
+        else:
+            return result.item()
+
+    def account_to_currency(self, account: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the account currency corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): If True, return None if the account number does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The currency associated with the provided account number.
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the account number does not exist and allow_missing=False,
+                        or if the number is duplicated.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["number"] == account, "currencyCode"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No currency found for account: {account}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple currencies found for account: {account}")
+        else:
+            return result.item()
+
     # ----------------------------------------------------------------------
     # Ledger
 
