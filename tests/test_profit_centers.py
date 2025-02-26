@@ -16,6 +16,7 @@ def profit_centers(cc_client):
     initial_profit_center_ids = CashCtrlClient.list_profit_centers(cc_client)["id"].to_list()
     new_profit_center = {"name": "Test Profit Center", "number": 1000}
     cc_client.post("account/costcenter/create.json", params=new_profit_center)
+    cc_client.list_profit_centers.cache_clear()
 
     # Explicitly call the base class method to circumvent the cache.
     yield CashCtrlClient.list_profit_centers(cc_client)
