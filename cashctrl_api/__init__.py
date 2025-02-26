@@ -1,6 +1,6 @@
 # flake8: noqa: F401
 
-"""This castctrl_api package provides a thin client for interacting with the
+"""This cashctrl_api package provides a thin client for interacting with the
 CashCtrl REST API. In addition to generic GET, PUT, POST, and DELETE requests,
 it includes functionality to list, create, and manage categories,
 as well as to upload and download files.
