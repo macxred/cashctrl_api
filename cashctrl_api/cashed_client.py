@@ -29,8 +29,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """
         super().__init__(*args, **kwargs)
         self._cache_timeout = cache_timeout
-        self._currencies_cache: Optional[pd.DataFrame] = None
-        self._currencies_cache_time: Optional[datetime] = None
         self._journal_cache: Optional[pd.DataFrame] = None
         self._journal_cache_time: Optional[datetime] = None
         self._profit_centers_cache: Optional[pd.DataFrame] = None
@@ -70,11 +68,6 @@ class CachedCashCtrlClient(CashCtrlClient):
             return True
         return (datetime.now() - cache_time) > timedelta(seconds=self._cache_timeout)
 
-    def invalidate_currencies_cache(self) -> None:
-        """Invalidates the cached currencies data."""
-        self._currencies_cache = None
-        self._currencies_cache_time = None
-
     def invalidate_journal_cache(self) -> None:
         """Invalidates the cached journal entries data."""
         self._journal_cache = None
@@ -84,60 +77,6 @@ class CachedCashCtrlClient(CashCtrlClient):
         """Invalidates the cached profit centers data."""
         self._profit_centers_cache = None
         self._profit_centers_cache_time = None
-
-    # ----------------------------------------------------------------------
-    # Currencies
-
-    def list_currencies(self) -> pd.DataFrame:
-        """Lists remote currencies with their attributes, and caches the result.
-
-        Returns:
-            pd.DataFrame: A DataFrame with currencies.
-        """
-        if self._currencies_cache is None or self._is_expired(self._currencies_cache_time):
-            self._currencies_cache = pd.DataFrame(self.get("currency/list.json")["data"])
-            self._currencies_cache_time = datetime.now()
-        return self._currencies_cache
-
-    def currency_from_id(self, id: int) -> str:
-        """Retrieve the currency corresponding to a given id.
-
-        Args:
-            id (int): The id of the currency.
-
-        Returns:
-            str: The currency name associated with the provided id.
-
-        Raises:
-            ValueError: If the currency id does not exist.
-        """
-        df = self.list_currencies()
-        result = df.loc[df["id"] == id, "text"]
-        if result.empty:
-            raise ValueError(f"No currency found for id: {id}")
-        else:
-            return result.item()
-
-    def currency_to_id(self, name: str) -> int:
-        """Retrieve the id corresponding to a given currency name.
-
-        Args:
-            text (srt): The currency name.
-
-        Returns:
-            int: The id associated with the provided currency name.
-
-        Raises:
-            ValueError: If the currency does not exist or is duplicated.
-        """
-        df = self.list_currencies()
-        result = df.loc[df["text"] == name, "id"]
-        if result.empty:
-            raise ValueError(f"No id found for currency: {name}")
-        elif len(result) > 1:
-            raise ValueError(f"Multiple ids found for currency: {name}")
-        else:
-            return result.item()
 
     # ----------------------------------------------------------------------
     # Ledger

@@ -790,6 +790,59 @@ class CashCtrlClient:
             return result.item()
 
     # ----------------------------------------------------------------------
+    # Currencies
+
+    @timed_cache(seconds=CACHE_TIMEOUT)
+    def list_currencies(self) -> pd.DataFrame:
+        """Lists remote currencies with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with currencies.
+        """
+        currencies = self.get("currency/list.json")["data"]
+        return pd.DataFrame(currencies)
+
+    def currency_from_id(self, id: int) -> str:
+        """Retrieve the currency corresponding to a given id.
+
+        Args:
+            id (int): The id of the currency.
+
+        Returns:
+            str: The currency name associated with the provided id.
+
+        Raises:
+            ValueError: If the currency id does not exist.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["id"] == id, "text"]
+        if result.empty:
+            raise ValueError(f"No currency found for id: {id}")
+        else:
+            return result.item()
+
+    def currency_to_id(self, name: str) -> int:
+        """Retrieve the id corresponding to a given currency name.
+
+        Args:
+            text (srt): The currency name.
+
+        Returns:
+            int: The id associated with the provided currency name.
+
+        Raises:
+            ValueError: If the currency does not exist or is duplicated.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["text"] == name, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for currency: {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for currency: {name}")
+        else:
+            return result.item()
+
+    # ----------------------------------------------------------------------
     # Ledger
 
     def list_journal_entries(self) -> pd.DataFrame:
