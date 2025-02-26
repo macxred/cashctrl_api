@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 import pandas as pd
 from requests import HTTPError, request, RequestException, Response
 import requests.exceptions
@@ -420,7 +420,7 @@ class CashCtrlClient:
         df = enforce_dtypes(df, FILE_COLUMNS)
         return df.sort_values("path")
 
-    def file_id_to_path(self, id: int, allow_missing: bool = False) -> Optional[str]:
+    def file_id_to_path(self, id: int, allow_missing: bool = False) -> str | None:
         """Retrieve the file path corresponding to a given id.
 
         Returns:
@@ -439,7 +439,7 @@ class CashCtrlClient:
         else:
             return result.item()
 
-    def file_path_to_id(self, path: str, allow_missing: bool = False) -> Optional[int]:
+    def file_path_to_id(self, path: str, allow_missing: bool = False) -> int | None:
         """Retrieve the file id corresponding to a given file path.
 
         Returns:
