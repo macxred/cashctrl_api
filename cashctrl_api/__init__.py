@@ -7,12 +7,9 @@ as well as to upload and download files.
 
 Modules:
 - client: Contains the CashCtrlClient class that encapsulates API interactions.
-- cashed_client: Implements the CachedCashCtrlClient class that extends
-                 CashCtrlClient with caching capabilities.
 - list_directory: Provides a utility function listing local directory contents.
 """
 
 from .client import CashCtrlClient
-from .cashed_client import CachedCashCtrlClient
 from .list_directory import list_directory
 from .import constants
