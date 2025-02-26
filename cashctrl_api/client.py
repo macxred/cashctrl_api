@@ -687,6 +687,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Accounts
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_accounts(self) -> pd.DataFrame:
         """List remote accounts with their attributes, and Unix-style path
         representation of their hierarchical position in the category tree.
