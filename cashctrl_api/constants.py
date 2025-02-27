@@ -177,4 +177,22 @@ CURRENCY_COLUMNS = {
     "isAuto": "bool",
 }
 
+FISCAL_PERIOD_COLUMNS = {
+    "id": "int",
+    "created": "datetime64[ns, Europe/Berlin]",
+    "createdBy": "string[python]",
+    "lastUpdated": "datetime64[ns, Europe/Berlin]",
+    "lastUpdatedBy": "string[python]",
+    "name": "string[python]",
+    "start": "datetime64[ns, Europe/Berlin]",
+    "end": "datetime64[ns, Europe/Berlin]",
+    "shortName": "string[python]",
+    "lastEntryDate": "datetime64[ns, Europe/Berlin]",
+    "month": "bool",
+    "open": "bool",
+    "isClosed": "bool",
+    "isCurrent": "bool",
+    "isTransient": "bool",
+}
+
 CACHE_TIMEOUT = 300

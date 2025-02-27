@@ -19,6 +19,7 @@ from .constants import (
     CATEGORY_COLUMNS,
     CURRENCY_COLUMNS,
     FILE_COLUMNS,
+    FISCAL_PERIOD_COLUMNS,
     JOURNAL_ENTRIES,
     PROFIT_CENTER_COLUMNS,
     TAX_COLUMNS
@@ -964,7 +965,7 @@ class CashCtrlClient:
         Returns:
             pd.DataFrame: A DataFrame with FISCAL_PERIOD_SCHEMA applied.
         """
-        fiscal_periods = pd.DataFrame(self._client.get("fiscalperiod/list.json")["data"])
+        fiscal_periods = pd.DataFrame(self.get("fiscalperiod/list.json")["data"])
         fiscal_periods = enforce_dtypes(fiscal_periods, FISCAL_PERIOD_COLUMNS)
         fp = fiscal_periods.sort_values("start").reset_index(drop=True)
 
