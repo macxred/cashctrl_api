@@ -17,6 +17,7 @@ from .constants import (
     ACCOUNT_COLUMNS,
     CACHE_TIMEOUT,
     CATEGORY_COLUMNS,
+    CURRENCY_COLUMNS,
     FILE_COLUMNS,
     JOURNAL_ENTRIES,
     PROFIT_CENTER_COLUMNS,
@@ -333,9 +334,65 @@ class CashCtrlClient:
                     response = self.post(f"{resource}/category/create.json", params=params)
                     categories[node_path] = response["insertId"]
 
+        if resource == "file":
+            self.list_files.cache_clear()
+        elif resource == "account":
+            self.list_account_categories.cache_clear()
+
+    @timed_cache(seconds=CACHE_TIMEOUT)
+    def list_account_categories(self) -> pd.DataFrame:
+        """Lists remote account categories with their attributes, and caches the result.
+
+        Returns:
+            pd.DataFrame: A DataFrame with CashCtrlClient.CATEGORY_COLUMNS
+                          | {'number': 'Int64'} schema.
+        """
+        return self.list_categories("account", include_system=True)
+
+    def account_category_to_id(self, path: str) -> int:
+        """Retrieve the id corresponding to a given category path.
+
+        Args:
+            path (str): The path of category.
+
+        Returns:
+            int: The id associated with the provided category path.
+
+        Raises:
+            ValueError: If the account category path does not exist or is duplicated.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["path"] == path, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for account category path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for category path: {path}")
+        else:
+            return result.item()
+
+    def account_category_from_id(self, id: int) -> int:
+        """Retrieve the path corresponding to a given account category id.
+
+        Args:
+            id (int): The id of category path.
+
+        Returns:
+            path: The path associated with the provided account category id.
+
+        Raises:
+            ValueError: If the account category id does not exist.
+        """
+        df = self.list_account_categories()
+        result = df.loc[df["id"] == id, "path"]
+        if result.empty:
+            raise ValueError(f"No path found for account category id: {id}")
+        else:
+            return result.item()
+
     # ----------------------------------------------------------------------
     # File Operations
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_files(self) -> pd.DataFrame:
         """List remote files with their attributes. Add the files' hierarchical
         position in the category tree in Unix-like filepath format.
@@ -363,6 +420,44 @@ class CashCtrlClient:
             df["path"] = df["path"].fillna("") + "/" + df["name"]
         df = enforce_dtypes(df, FILE_COLUMNS)
         return df.sort_values("path")
+
+    def file_id_to_path(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the file path corresponding to a given id.
+
+        Returns:
+            str | None: The file path associated with the provided id
+                        or None if allow_missing is True and there is no such file path.
+        """
+        df = self.list_files()
+        result = df.loc[df["id"] == id, "path"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No path found for id: {id}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple paths found for id: {id}")
+        else:
+            return result.item()
+
+    def file_path_to_id(self, path: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the file id corresponding to a given file path.
+
+        Returns:
+            int | None: The id associated with the file path
+                        or None if allow_missing is True and there is no such file id.
+        """
+        df = self.list_files()
+        result = df.loc[df["path"] == path, "id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for path: {path}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple id found for path: {path}")
+        else:
+            return result.item()
 
     def upload_file(
         self,
@@ -417,7 +512,7 @@ class CashCtrlClient:
 
         if id is None:
             self.post("file/persist.json", params={"ids": new_file_id})
-            return new_file_id
+            file_id = new_file_id
         else:
             params = {
                 "id": id,
@@ -426,7 +521,10 @@ class CashCtrlClient:
                 "categoryId": category,
             }
             self.post("file/update.json", params=params)
-            return int(id)
+            file_id = int(id)
+
+        self.list_files.cache_clear()
+        return file_id
 
     def download_file(self, id: int | str, path: str | Path):
         """Downloads a file identified by a remote ID and saves it locally.
@@ -518,6 +616,7 @@ class CashCtrlClient:
             self.upload_file(
                 Path(directory) / local_file, category=category_map[remote_category]
             )
+        self.list_files.cache_clear()
 
     # ----------------------------------------------------------------------
     # Tax Rates
@@ -589,6 +688,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Accounts
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_accounts(self) -> pd.DataFrame:
         """List remote accounts with their attributes, and Unix-style path
         representation of their hierarchical position in the category tree.
@@ -609,9 +709,145 @@ class CashCtrlClient:
         df = enforce_dtypes(df, ACCOUNT_COLUMNS)
         return df.sort_values("number")
 
+    def account_from_id(self, id: int, allow_missing: bool = False) -> int | None:
+        """Retrieve the account number corresponding to a given id.
+
+        Args:
+            id (int): The id of the account.
+            allow_missing (boolean): If True, return None if the account id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The account number associated with the provided id
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the id does not exist and allow_missing=False.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["id"] == id, "number"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No account found for id {id}")
+        else:
+            return result.item()
+
+    def account_to_id(self, account: int, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): If True, return None if the account number does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided account number.
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the account number does not exist and allow_missing=False,
+                        or if the number is duplicated.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["number"] == account, "id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for account: {account}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for account: {account}")
+        else:
+            return result.item()
+
+    def account_to_currency(self, account: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the account currency corresponding to a given account number.
+
+        Args:
+            account (int): The account number.
+            allow_missing (boolean): If True, return None if the account number does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The currency associated with the provided account number.
+                        or None if allow_missing is True and there is no such account.
+
+        Raises:
+            ValueError: If the account number does not exist and allow_missing=False,
+                        or if the number is duplicated.
+        """
+        df = self.list_accounts()
+        result = df.loc[df["number"] == account, "currencyCode"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No currency found for account: {account}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple currencies found for account: {account}")
+        else:
+            return result.item()
+
+    # ----------------------------------------------------------------------
+    # Currencies
+
+    @timed_cache(seconds=CACHE_TIMEOUT)
+    def list_currencies(self) -> pd.DataFrame:
+        """Lists remote currencies with their attributes.
+
+        Returns:
+            pd.DataFrame: A DataFrame with currencies.
+        """
+        currencies = pd.DataFrame(self.get("currency/list.json")["data"])
+        df = enforce_dtypes(currencies, CURRENCY_COLUMNS)
+        return df.sort_values("code")
+
+    def currency_from_id(self, id: int) -> str:
+        """Retrieve the currency corresponding to a given id.
+
+        Args:
+            id (int): The id of the currency.
+
+        Returns:
+            str: The currency name associated with the provided id.
+
+        Raises:
+            ValueError: If the currency id does not exist.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["id"] == id, "text"]
+        if result.empty:
+            raise ValueError(f"No currency found for id: {id}")
+        else:
+            return result.item()
+
+    def currency_to_id(self, name: str) -> int:
+        """Retrieve the id corresponding to a given currency name.
+
+        Args:
+            text (srt): The currency name.
+
+        Returns:
+            int: The id associated with the provided currency name.
+
+        Raises:
+            ValueError: If the currency does not exist or is duplicated.
+        """
+        df = self.list_currencies()
+        result = df.loc[df["text"] == name, "id"]
+        if result.empty:
+            raise ValueError(f"No id found for currency: {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for currency: {name}")
+        else:
+            return result.item()
+
     # ----------------------------------------------------------------------
     # Ledger
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_journal_entries(self) -> pd.DataFrame:
         """List remote journal entries with their attributes.
 
@@ -654,6 +890,7 @@ class CashCtrlClient:
     # ----------------------------------------------------------------------
     # Profit Centers
 
+    @timed_cache(seconds=CACHE_TIMEOUT)
     def list_profit_centers(self) -> pd.DataFrame:
         """List remote profit centers with their attributes.
 
@@ -663,3 +900,56 @@ class CashCtrlClient:
         profit_centers = pd.DataFrame(self.get("account/costcenter/list.json")["data"])
         df = enforce_dtypes(profit_centers, PROFIT_CENTER_COLUMNS)
         return df.sort_values("name")
+
+    def profit_center_from_id(self, id: int, allow_missing: bool = False) -> str | None:
+        """Retrieve the profit center name corresponding to a given id.
+
+        Args:
+            id (int): The id of the profit center.
+            allow_missing (boolean): If True, return None if the profit center id does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            str | None: The profit center name associated with the provided id.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center id does not exist and allow_missing=False.
+        """
+        df = self.list_profit_centers()
+        result = df.query("id == @id")["name"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No profit center found for id: {id}")
+        else:
+            return result.item()
+
+    def profit_center_to_id(self, name: str, allow_missing: bool = False) -> int | None:
+        """Retrieve the id corresponding to a given profit center name.
+
+        Args:
+            name (str): The profit center name.
+            allow_missing (boolean): If True, return None if the profit center does not exist.
+                                     Otherwise raise a ValueError.
+
+        Returns:
+            int | None: The id associated with the provided profit center name.
+                        or None if allow_missing is True and there is no such profit center.
+
+        Raises:
+            ValueError: If the profit center does not exist and allow_missing=False,
+                        or if the profit center is duplicated.
+        """
+        df = self.list_profit_centers()
+        result = df.query("name == @name")["id"]
+        if result.empty:
+            if allow_missing:
+                return None
+            else:
+                raise ValueError(f"No id found for profit center {name}")
+        elif len(result) > 1:
+            raise ValueError(f"Multiple ids found for profit center {name}")
+        else:
+            return result.item()

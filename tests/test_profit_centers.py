@@ -1,14 +1,12 @@
-"""Unit tests for cached profit centers."""
+"""Unit tests for profit centers."""
 
-import time
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
-import pandas as pd
+from cashctrl_api import CashCtrlClient
 import pytest
 
 
 @pytest.fixture(scope="module")
-def cc_client() -> CachedCashCtrlClient:
-    return CachedCashCtrlClient()
+def cc_client() -> CashCtrlClient:
+    return CashCtrlClient()
 
 
 @pytest.fixture(scope="module")
@@ -17,8 +15,8 @@ def profit_centers(cc_client):
     initial_profit_center_ids = CashCtrlClient.list_profit_centers(cc_client)["id"].to_list()
     new_profit_center = {"name": "Test Profit Center", "number": 1000}
     cc_client.post("account/costcenter/create.json", params=new_profit_center)
+    cc_client.list_profit_centers.cache_clear()
 
-    # Explicitly call the base class method to circumvent the cache.
     yield CashCtrlClient.list_profit_centers(cc_client)
 
     # Delete any created profit center
@@ -27,31 +25,6 @@ def profit_centers(cc_client):
     if len(to_delete):
         ids = ",".join([str(id) for id in to_delete])
         cc_client.post("account/costcenter/delete.json", params={"ids": ids})
-
-
-def test_profit_centers_cache_is_none_on_init(cc_client):
-    assert cc_client._profit_centers_cache is None
-    assert cc_client._profit_centers_cache_time is None
-
-
-def test_cached_profit_centers_same_to_actual(cc_client, profit_centers):
-    pd.testing.assert_frame_equal(cc_client.list_profit_centers(), profit_centers)
-
-
-def test_profit_center_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_profit_centers()
-    assert not cc_client._is_expired(cc_client._profit_centers_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._profit_centers_cache_time)
-
-
-def test_profit_center_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_profit_centers()
-    assert not cc_client._is_expired(cc_client._profit_centers_cache_time)
-    cc_client.invalidate_profit_centers_cache()
-    assert cc_client._is_expired(cc_client._profit_centers_cache_time)
 
 
 def test_profit_center_from_id(cc_client, profit_centers):

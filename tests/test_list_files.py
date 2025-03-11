@@ -1,8 +1,6 @@
-"""Unit tests for cached files."""
+"""Unit tests for files."""
 
-import time
-from cashctrl_api import CachedCashCtrlClient, CashCtrlClient
-import pandas as pd
+from cashctrl_api import CashCtrlClient
 import pytest
 
 
@@ -24,14 +22,14 @@ def mock_directory(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def cc_client(mock_directory):
-    """Create a CachedCashCtrlClient, populate with files and folders."""
-    cc_client = CachedCashCtrlClient()
+    """Create a CashCtrlClient, populate with files and folders."""
+    cc_client = CashCtrlClient()
     initial_files = cc_client.list_files()
     cc_client.mirror_directory(mock_directory, delete_files=False)
 
     # We create a fresh instance with empty cache, because the cache is
     # populated when mirroring a directory
-    cc_client = CachedCashCtrlClient()
+    cc_client = CashCtrlClient()
 
     yield cc_client
 
@@ -42,32 +40,19 @@ def cc_client(mock_directory):
     cc_client.post("file/delete.json", params=params)
 
 
-@pytest.fixture(scope="module")
-def files(cc_client):
-    # Explicitly call the base class method to circumvent the cache.
-    return CashCtrlClient.list_files(cc_client)
-
-
-def test_files_cache_is_none_on_init(cc_client):
-    assert cc_client._files_cache is None
-    assert cc_client._files_cache_time is None
-
-
-def test_cached_files_same_to_actual(cc_client, files):
-    pd.testing.assert_frame_equal(cc_client.list_files(), files)
-
-
-def test_file_id_to_path(cc_client, files):
+def test_file_id_to_path(cc_client):
+    files = cc_client.list_files()
     assert (
         cc_client.file_id_to_path(files["id"].iat[0]) == files["path"].iat[0]
-    ), "Cached file path doesn't correspond actual"
+    ), "Mapped file path doesn't correspond actual"
 
 
-def test_file_id_to_nested_path(cc_client, files):
+def test_file_id_to_nested_path(cc_client):
+    files = cc_client.list_files()
     path = "/nested/subdir/file4.txt"
     id = files.loc[files["path"] == path, "id"].item()
     assert cc_client.file_id_to_path(id) == path, (
-        "Cached nested file path doesn't correspond actual."
+        "Mapped nested file path doesn't correspond actual."
     )
 
 
@@ -80,18 +65,20 @@ def test_file_id_to_path_invalid_id_returns_none_when_allowed_missing(cc_client)
     assert cc_client.file_id_to_path(99999999, allow_missing=True) is None
 
 
-def test_file_path_to_id(cc_client, files):
+def test_file_path_to_id(cc_client):
+    files = cc_client.list_files()
     path = "/nested/subdir/file4.txt"
     id = files.loc[files["path"] == path, "id"].item()
     assert cc_client.file_path_to_id(path) == id, (
-        "Cached nested file id doesn't correspond actual id."
+        "Mapped nested file id doesn't correspond actual id."
     )
 
 
-def test_nested_file_path_to_id(cc_client, files):
+def test_nested_file_path_to_id(cc_client):
+    files = cc_client.list_files()
     assert (
         cc_client.file_path_to_id(files["path"].iat[0]) == files["id"].iat[0]
-    ), "Cached file id doesn't correspond actual id"
+    ), "Mapped file id doesn't correspond actual id"
 
 
 def test_file_path_to_id_with_invalid_path_raises_error(cc_client):
@@ -101,19 +88,3 @@ def test_file_path_to_id_with_invalid_path_raises_error(cc_client):
 
 def test_file_path_to_id_with_invalid_returns_none_when_allowed_missing(cc_client):
     assert cc_client.file_path_to_id(99999999, allow_missing=True) is None
-
-
-def test_files_cache_timeout():
-    cc_client = CachedCashCtrlClient(cache_timeout=1)
-    cc_client.list_files()
-    assert not cc_client._is_expired(cc_client._files_cache_time)
-    time.sleep(1)
-    assert cc_client._is_expired(cc_client._files_cache_time)
-
-
-def test_files_cache_invalidation():
-    cc_client = CachedCashCtrlClient()
-    cc_client.list_files()
-    assert not cc_client._is_expired(cc_client._files_cache_time)
-    cc_client.invalidate_files_cache()
-    assert cc_client._is_expired(cc_client._files_cache_time)
