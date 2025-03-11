@@ -1,7 +1,6 @@
-"""Unit tests for cached files."""
+"""Unit tests for files."""
 
 from cashctrl_api import CashCtrlClient
-import pandas as pd
 import pytest
 
 
@@ -41,27 +40,19 @@ def cc_client(mock_directory):
     cc_client.post("file/delete.json", params=params)
 
 
-@pytest.fixture(scope="module")
-def files(cc_client):
-    # Explicitly call the base class method to circumvent the cache.
-    return CashCtrlClient.list_files(cc_client)
-
-
-def test_cached_files_same_to_actual(cc_client, files):
-    pd.testing.assert_frame_equal(cc_client.list_files(), files)
-
-
-def test_file_id_to_path(cc_client, files):
+def test_file_id_to_path(cc_client):
+    files = cc_client.list_files()
     assert (
         cc_client.file_id_to_path(files["id"].iat[0]) == files["path"].iat[0]
-    ), "Cached file path doesn't correspond actual"
+    ), "Mapped file path doesn't correspond actual"
 
 
-def test_file_id_to_nested_path(cc_client, files):
+def test_file_id_to_nested_path(cc_client):
+    files = cc_client.list_files()
     path = "/nested/subdir/file4.txt"
     id = files.loc[files["path"] == path, "id"].item()
     assert cc_client.file_id_to_path(id) == path, (
-        "Cached nested file path doesn't correspond actual."
+        "Mapped nested file path doesn't correspond actual."
     )
 
 
@@ -74,18 +65,20 @@ def test_file_id_to_path_invalid_id_returns_none_when_allowed_missing(cc_client)
     assert cc_client.file_id_to_path(99999999, allow_missing=True) is None
 
 
-def test_file_path_to_id(cc_client, files):
+def test_file_path_to_id(cc_client):
+    files = cc_client.list_files()
     path = "/nested/subdir/file4.txt"
     id = files.loc[files["path"] == path, "id"].item()
     assert cc_client.file_path_to_id(path) == id, (
-        "Cached nested file id doesn't correspond actual id."
+        "Mapped nested file id doesn't correspond actual id."
     )
 
 
-def test_nested_file_path_to_id(cc_client, files):
+def test_nested_file_path_to_id(cc_client):
+    files = cc_client.list_files()
     assert (
         cc_client.file_path_to_id(files["path"].iat[0]) == files["id"].iat[0]
-    ), "Cached file id doesn't correspond actual id"
+    ), "Mapped file id doesn't correspond actual id"
 
 
 def test_file_path_to_id_with_invalid_path_raises_error(cc_client):

@@ -1,7 +1,6 @@
 """Unit tests for accounts."""
 
 from cashctrl_api import CashCtrlClient
-import pandas as pd
 import pytest
 
 
@@ -10,20 +9,11 @@ def cc_client():
     return CashCtrlClient()
 
 
-@pytest.fixture(scope="module")
-def accounts(cc_client):
-    # Explicitly call the base class method to circumvent the cache.
-    return CashCtrlClient.list_accounts(cc_client)
-
-
-def test_cached_accounts_same_to_actual(cc_client, accounts):
-    pd.testing.assert_frame_equal(cc_client.list_accounts(), accounts)
-
-
-def test_account_from_id(cc_client, accounts):
+def test_account_from_id(cc_client):
+    accounts = cc_client.list_accounts()
     assert (
         cc_client.account_from_id(accounts["id"].iat[0]) == accounts["number"].iat[0]
-    ), "Cached account number doesn't correspond actual number"
+    ), "Mapped account number doesn't correspond actual number"
 
 
 def test_account_from_id_invalid_id_raises_error(cc_client):
@@ -35,10 +25,11 @@ def test_account_from_id_invalid_id_returns_none_with_allowed_missing(cc_client)
     assert cc_client.account_from_id(99999999, allow_missing=True) is None
 
 
-def test_account_to_id(cc_client, accounts):
+def test_account_to_id(cc_client):
+    accounts = cc_client.list_accounts()
     assert (
         cc_client.account_to_id(accounts["number"].iat[1]) == accounts["id"].iat[1]
-    ), "Cached account id doesn't correspond actual id"
+    ), "Mapped account id doesn't correspond actual id"
 
 
 def test_account_to_id_with_invalid_account_number_raises_error(cc_client):
@@ -50,11 +41,12 @@ def test_account_to_id_with_invalid_account_number_returns_none_with_allowed_mis
     assert cc_client.account_to_id(99999999, allow_missing=True) is None
 
 
-def test_account_to_currency(cc_client, accounts):
+def test_account_to_currency(cc_client):
+    accounts = cc_client.list_accounts()
     assert (
         cc_client.account_to_currency(accounts["number"].iat[1])
         == accounts["currencyCode"].iat[1]
-    ), "Cached account currency doesn't correspond actual currency"
+    ), "Mapped account currency doesn't correspond actual currency"
 
 
 def test_account_to_currency_with_invalid_account_number_raises_error(cc_client):

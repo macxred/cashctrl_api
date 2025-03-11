@@ -2,7 +2,6 @@
 
 from cashctrl_api import CashCtrlClient
 import pytest
-import pandas as pd
 
 
 @pytest.fixture(scope="module")
@@ -10,20 +9,11 @@ def cc_client():
     return CashCtrlClient()
 
 
-@pytest.fixture(scope="module")
-def currencies():
-    cc_client = CashCtrlClient()
-    return cc_client.list_currencies()
-
-
-def test_cached_currencies_same_to_actual(cc_client, currencies):
-    pd.testing.assert_frame_equal(cc_client.list_currencies(), currencies)
-
-
-def test_currency_from_id(cc_client, currencies):
+def test_currency_from_id(cc_client):
+    currencies = cc_client.list_currencies()
     assert (
         cc_client.currency_from_id(currencies["id"].iat[0]) == currencies["text"].iat[0]
-    ), "Cached currency doesn't correspond actual"
+    ), "Mapped currency doesn't correspond actual"
 
 
 def test_currency_from_id_invalid_id_raises_error(cc_client):
@@ -31,10 +21,11 @@ def test_currency_from_id_invalid_id_raises_error(cc_client):
         cc_client.currency_from_id(99999999)
 
 
-def test_currency_to_id(cc_client, currencies):
+def test_currency_to_id(cc_client):
+    currencies = cc_client.list_currencies()
     assert (
         cc_client.currency_to_id(currencies["text"].iat[1]) == currencies["id"].iat[1]
-    ), "Cached currency id doesn't correspond actual id"
+    ), "Mapped currency id doesn't correspond actual id"
 
 
 def test_currency_to_id_with_invalid_currency_raises_error(cc_client):

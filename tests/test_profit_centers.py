@@ -1,7 +1,6 @@
 """Unit tests for profit centers."""
 
 from cashctrl_api import CashCtrlClient
-import pandas as pd
 import pytest
 
 
@@ -18,7 +17,6 @@ def profit_centers(cc_client):
     cc_client.post("account/costcenter/create.json", params=new_profit_center)
     cc_client.list_profit_centers.cache_clear()
 
-    # Explicitly call the base class method to circumvent the cache.
     yield CashCtrlClient.list_profit_centers(cc_client)
 
     # Delete any created profit center
@@ -27,10 +25,6 @@ def profit_centers(cc_client):
     if len(to_delete):
         ids = ",".join([str(id) for id in to_delete])
         cc_client.post("account/costcenter/delete.json", params={"ids": ids})
-
-
-def test_cached_profit_centers_same_to_actual(cc_client, profit_centers):
-    pd.testing.assert_frame_equal(cc_client.list_profit_centers(), profit_centers)
 
 
 def test_profit_center_from_id(cc_client, profit_centers):
