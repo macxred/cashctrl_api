@@ -188,8 +188,6 @@ FISCAL_PERIOD_COLUMNS = {
     "end": "datetime64[ns, Europe/Berlin]",
     "shortName": "string[python]",
     "lastEntryDate": "datetime64[ns, Europe/Berlin]",
-    "month": "bool",
-    "open": "bool",
     "isClosed": "bool",
     "isCurrent": "bool",
     "isTransient": "bool",
