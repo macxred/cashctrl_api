@@ -27,10 +27,6 @@ def profit_centers(cc_client):
         cc_client.post("account/costcenter/delete.json", params={"ids": ids})
 
 
-@pytest.mark.skip(reason=(
-    "The Cashctrl `account/costcenter/list.json` endpoint is broken and does not return any data. "
-    "Issue #52"
-))
 def test_profit_center_from_id(cc_client, profit_centers):
     profit_center_from_id = cc_client.profit_center_from_id(profit_centers["id"].iat[0])
     assert profit_center_from_id == profit_centers["name"].iat[0], (
@@ -47,10 +43,6 @@ def test_profit_center_from_id_invalid_id_returns_none_with_allowed_missing(cc_c
     assert cc_client.profit_center_from_id(99999999, allow_missing=True) is None
 
 
-@pytest.mark.skip(reason=(
-    "The Cashctrl `account/costcenter/list.json` endpoint is broken and does not return any data. "
-    "Issue #52"
-))
 def test_profit_center_to_id(cc_client, profit_centers):
     assert (
         cc_client.profit_center_to_id(profit_centers["name"].iat[0]) == profit_centers["id"].iat[0]
