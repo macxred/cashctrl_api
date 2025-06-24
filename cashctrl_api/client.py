@@ -862,11 +862,21 @@ class CashCtrlClient:
         """
         # get("journal/list.json") returns by default the first 100 elements.
         # We override the size limit to download all values
-        # https://app.cashctrl.com/static/help/en/api/index.html#/journal/list.json
-        params = {"limit": 999999999999999999, "fiscalPeriodId": fiscal_period_id}
-        response = self.get("journal/list.json", params=params)
-        journal_entries = pd.DataFrame(response["data"])
-        df = enforce_dtypes(journal_entries, JOURNAL_ENTRIES)
+        # https://app.cashctrl.com/static/help/en/api/index.html#/journal/list.json\
+        if fiscal_period_id is None:
+            fiscal_period_id = [self.list_fiscal_periods()["id"]]
+        else:
+            fiscal_period_id = [fiscal_period_id]
+
+        all_entries = []
+        for fp_id in fiscal_period_id:
+            params = {"limit": 999999999999999999, "fiscalPeriodId": fp_id}
+            response = self.get("journal/list.json", params=params)
+            df = pd.DataFrame(response["data"])
+            all_entries.append(df)
+
+        entries = pd.concat(all_entries, ignore_index=True) if all_entries else pd.DataFrame()
+        df = enforce_dtypes(entries, JOURNAL_ENTRIES)
         return df.sort_values("dateAdded")
 
     # ----------------------------------------------------------------------
